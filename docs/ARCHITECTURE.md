@@ -362,6 +362,14 @@ Stable across versions, used by frontend for branching UI:
 
 ## Operational Notes
 
+### Pages are force-dynamic
+
+Every page under `src/app/` reads from the database, cookies, or auth state, so
+static prerendering would fail at build time (no `DATABASE_URL`) or serve stale
+HTML to logged-in users. We treat `export const dynamic = 'force-dynamic'` as
+the default for this app — there are no static pages. New pages must add this
+line. Convention details in `/CLAUDE.md` "Conventions".
+
 ### Sandbox network restrictions for agent sessions
 
 - `ui.shadcn.com` blocked. Use `REGISTRY_URL=https://raw.githubusercontent.com/shadcn-ui/ui/main/apps/v4/public/r` when running `pnpm dlx shadcn@latest add <comp>`.
