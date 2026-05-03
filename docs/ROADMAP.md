@@ -70,7 +70,7 @@ Participant
   id, sessionId, accessKeyHash, displayName, hasJoined, lastSeenAt, createdAt
 
 Track
-  id, sessionId, submittedById, title, artist?, url?, description?, createdAt
+  id, sessionId, submittedById, title, artist?, url?, description?, service?, serviceTrackId?, coverUrl?, embedSupported (default false), createdAt
 
 Vote
   id, sessionId, participantId, trackId, rank (1|2|3), updatedAt
@@ -419,6 +419,26 @@ setup → stage1 → stage2 → finished
 
 ---
 
+#### TICKET-P4-01b ⬜ — Track metadata schema migration
+
+**Scope**: prisma/schema.prisma, prisma/migrations/
+
+**Deliverable**: extend Track model with service/serviceTrackId/coverUrl/embedSupported
+
+**Acceptance**:
+- prisma/schema.prisma Track model has the four new fields per ARCHITECTURE.md
+- `pnpm prisma migrate dev --name add_track_metadata` produces a migration file
+- Migration is committed under prisma/migrations/
+- pnpm db:generate succeeds, TS imports of Track include new fields
+- pnpm lint, format:check, typecheck, build all pass
+- Seed (prisma/seed.ts from P1-02) updated to set service/coverUrl on existing seeded tracks (use any plausible Yandex Music URL + matching cover image URL — these don't need to be real, just non-null for UI testing)
+
+**Depends on**: P1-02
+
+**Implementation notes**: this ticket only adds DB columns and migration. Parsing logic and UI come in P4-04 and P4-05.
+
+---
+
 #### TICKET-P4-02 ⬜ — Participant home + stage 1 UI
 
 **Scope**: `src/app/page.tsx`, `src/app/(participant)/...`
@@ -430,6 +450,7 @@ setup → stage1 → stage2 → finished
 - Inline-индикатор «осталось N треков»
 - Список «весь пул»: title, artist, who submitted, описание (collapsed)
 - Возможность редактировать/удалить свой трек кнопками на карточке
+- Track cards render the TrackEmbed component (per P4-05) — wire the integration when P4-05 lands; this ticket can ship with a placeholder if P4-05 isn't merged yet.
 
 **Depends on**: P4-01, P0-03
 
@@ -446,6 +467,50 @@ setup → stage1 → stage2 → finished
 - Счётчик: «всего треков N, авторов M»
 
 **Depends on**: P3-03, P4-01
+
+---
+
+#### TICKET-P4-04 ⬜ — Track URL parser and metadata fetcher
+
+**Scope**: src/lib/track-url.ts, src/app/api/tracks/preview/route.ts
+
+**Deliverable**: detectService() pure function + metadata-extraction endpoint
+
+**Acceptance**:
+- src/lib/track-url.ts exports detectService(url) per ARCHITECTURE.md "Track URL Handling"
+- Unit tests cover: a real URL from each supported service (yandex track, yandex album+track, spotify, youtube, youtu.be short, youtube music), VK audio URL (returns vk kind, null embed), unparseable garbage (returns null)
+- src/lib/track-metadata.ts exports fetchOgMetadata(url) — server-side fetch + OG tag parse, 5s timeout, fail-soft (returns empty object on failure)
+- POST /api/tracks/preview accepts { url }, runs detectService + fetchOgMetadata in parallel, returns combined response per ARCHITECTURE.md
+- Endpoint protected by requireParticipant + assertStage(STAGE1)
+- Use a small HTML parser (cheerio or htmlparser2) — install whichever is lighter and well-typed
+- Generic User-Agent: "voteSite/1.0 (+metadata-fetch)" — services that block this are accepted as unsupported
+- pnpm lint, format:check, typecheck, build all pass
+- Unit tests pass
+
+**Depends on**: P4-01b, P2-03
+
+**Implementation notes**: do NOT pull spotify/yandex/youtube SDKs. Just URL pattern matching + OG scraping. Lighter, no API keys, no rate-limit handshakes.
+
+---
+
+#### TICKET-P4-05 ⬜ — Track form with URL preview and embed player component
+
+**Scope**: src/components/track-form.tsx, src/components/track-card.tsx, src/components/track-embed.tsx, integration into existing track UIs
+
+**Deliverable**: URL-first track submission flow + embedded player rendering
+
+**Acceptance**:
+- TrackForm: URL field is the first input. On blur (or after 800ms debounce), POST /api/tracks/preview is called and the response auto-fills title/artist/coverUrl. Loading state during fetch, error toast on failure.
+- User can override auto-filled title and artist before submit. coverUrl is not user-editable in this version.
+- TrackEmbed component renders:
+  - For embedSupported=true: <iframe> with the appropriate src per service (yandex/spotify/youtube). Sized appropriately on mobile and desktop.
+  - For embedSupported=false: a clickable card with cover image (if any), title, artist, and an "Открыть" button that links out in a new tab.
+- TrackCard uses TrackEmbed below the track metadata.
+- Both stage 1 (own + pool) and stage 2 (voting) UIs render TrackCard with embed.
+- Embed iframes have proper sandbox attributes and loading="lazy".
+- pnpm lint, format:check, typecheck, build all pass
+
+**Depends on**: P4-04, P4-02 (existing track UI to integrate into)
 
 ---
 
@@ -685,7 +750,7 @@ setup → stage1 → stage2 → finished
 
 Проверка на «MVP за минимум тикетов»: какие тикеты обязательны, чтобы один человек смог провести голосование от начала до конца?
 
-P0-01..05, P1-01..03, P2-01..05, P3-01, P3-02, P3-03, P4-01, P4-02, P5-01, P5-02, P6-01, P6-02, P7-01, P7-02 — **итого ~22 тикета**.
+P0-01..05, P1-01..03, P2-01..05, P3-01, P3-02, P3-03, P4-01, P4-01b, P4-02, P4-04, P4-05, P5-01, P5-02, P6-01, P6-02, P7-01, P7-02 — **итого ~25 тикетов**. (P4-01b, P4-04, P4-05 — это MVP, потому что embed-плеер для треков подтверждён; без него experience заметно слабее.)
 
 P3-04, P4-03, P5-03, P6-03, P7-03, P7-04, P7-05 — quality-of-life, но не блокируют.
 
