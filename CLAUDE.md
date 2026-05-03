@@ -11,8 +11,11 @@ The full plan lives in `docs/ROADMAP.md` (tickets, phases, statuses). Architectu
 ```bash
 pnpm install
 cp .env.example .env.local # fill DATABASE_URL and DIRECT_URL from Neon
-pnpm dev                   # http://localhost:3000
+pnpm db:migrate --name init # run once on first setup
+pnpm dev                    # http://localhost:3000
 ```
+
+Prisma scripts are wrapped with `dotenv-cli` so they read `.env.local` (the Prisma CLI itself only reads `.env`). Always invoke them via the `db:*` scripts, not `pnpm prisma ...` directly, or `DATABASE_URL` / `DIRECT_URL` will be missing.
 
 ## Commands
 
@@ -24,8 +27,12 @@ pnpm dev                   # http://localhost:3000
 | `pnpm format` | Prettier write |
 | `pnpm format:check` | Prettier check (CI-style) |
 | `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm test` | Vitest run (one-shot) |
 | `pnpm db:generate` | Regenerate Prisma client |
 | `pnpm db:studio` | Open Prisma Studio in browser |
+| `pnpm db:migrate` | `prisma migrate dev` (pass `--name <slug>` for new migrations) |
+| `pnpm db:migrate:deploy` | `prisma migrate deploy` (production) |
+| `pnpm db:seed` | Run `prisma/seed.ts` against the configured database |
 
 Before pushing any PR: run `pnpm lint && pnpm format:check && pnpm typecheck && pnpm build`. All four must be clean.
 
