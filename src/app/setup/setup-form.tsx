@@ -5,7 +5,6 @@ import { useState, type FormEvent } from 'react'
 import { CopyIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -14,10 +13,10 @@ import type { ApiResponse } from '@/lib/api/responses'
 
 const MIN_PASSWORD_LENGTH = 8
 const MIN_PARTICIPANTS = 2
-const MAX_PARTICIPANTS = 30
-const DEFAULT_PARTICIPANTS = 5
+const MAX_PARTICIPANTS = 100
+const DEFAULT_MAX_PARTICIPANTS = 20
 
-type SetupResponse = ApiResponse<{ accessKeys: string[] }>
+type SetupResponse = ApiResponse<{ joinToken: string }>
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -32,9 +31,9 @@ export function SetupForm() {
   const router = useRouter()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [participantCount, setParticipantCount] = useState<number>(DEFAULT_PARTICIPANTS)
+  const [maxParticipants, setMaxParticipants] = useState<number>(DEFAULT_MAX_PARTICIPANTS)
   const [pending, setPending] = useState(false)
-  const [accessKeys, setAccessKeys] = useState<string[] | null>(null)
+  const [joinToken, setJoinToken] = useState<string | null>(null)
 
   function validate(): string | null {
     if (password.length < MIN_PASSWORD_LENGTH) {
@@ -44,11 +43,11 @@ export function SetupForm() {
       return 'Пароли не совпадают.'
     }
     if (
-      !Number.isInteger(participantCount) ||
-      participantCount < MIN_PARTICIPANTS ||
-      participantCount > MAX_PARTICIPANTS
+      !Number.isInteger(maxParticipants) ||
+      maxParticipants < MIN_PARTICIPANTS ||
+      maxParticipants > MAX_PARTICIPANTS
     ) {
-      return `Число участников — от ${MIN_PARTICIPANTS} до ${MAX_PARTICIPANTS}.`
+      return `Лимит участников — от ${MIN_PARTICIPANTS} до ${MAX_PARTICIPANTS}.`
     }
     return null
   }
@@ -66,7 +65,7 @@ export function SetupForm() {
       const res = await fetch('/api/setup', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ password, participantCount }),
+        body: JSON.stringify({ password, maxParticipants }),
       })
       const body = (await res.json()) as SetupResponse
       if (!res.ok || !body.ok) {
@@ -74,7 +73,7 @@ export function SetupForm() {
         toast.error(message)
         return
       }
-      setAccessKeys(body.data.accessKeys)
+      setJoinToken(body.data.joinToken)
     } catch {
       toast.error('Сеть недоступна. Попробуйте ещё раз.')
     } finally {
@@ -82,8 +81,8 @@ export function SetupForm() {
     }
   }
 
-  if (accessKeys) {
-    return <SetupKeysView accessKeys={accessKeys} onContinue={() => router.push('/login')} />
+  if (joinToken) {
+    return <SetupJoinLinkView joinToken={joinToken} onContinue={() => router.push('/admin')} />
   }
 
   return (
@@ -120,17 +119,20 @@ export function SetupForm() {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="participantCount">Количество участников</Label>
+            <Label htmlFor="maxParticipants">Максимум участников</Label>
             <Input
-              id="participantCount"
+              id="maxParticipants"
               type="number"
               min={MIN_PARTICIPANTS}
               max={MAX_PARTICIPANTS}
-              value={Number.isFinite(participantCount) ? participantCount : ''}
-              onChange={(e) => setParticipantCount(e.target.valueAsNumber)}
+              value={Number.isFinite(maxParticipants) ? maxParticipants : ''}
+              onChange={(e) => setMaxParticipants(e.target.valueAsNumber)}
               required
               disabled={pending}
             />
+            <p className="text-muted-foreground text-xs">
+              Лимит на количество регистраций. После заполнения новые участники зайти не смогут.
+            </p>
           </div>
         </CardContent>
         <CardFooter className="justify-end">
@@ -143,73 +145,54 @@ export function SetupForm() {
   )
 }
 
-function SetupKeysView({
-  accessKeys,
+function SetupJoinLinkView({
+  joinToken,
   onContinue,
 }: {
-  accessKeys: string[]
+  joinToken: string
   onContinue: () => void
 }) {
-  async function handleCopyOne(key: string) {
-    const ok = await copyText(key)
-    if (ok) toast.success('Ключ скопирован')
-    else toast.error('Скопируйте вручную')
-  }
+  const joinUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/join/${joinToken}`
+      : `/join/${joinToken}`
 
-  async function handleCopyAll() {
-    const ok = await copyText(accessKeys.join('\n'))
-    if (ok) toast.success('Все ключи скопированы')
+  async function handleCopyLink() {
+    const ok = await copyText(joinUrl)
+    if (ok) toast.success('Ссылка скопирована')
     else toast.error('Скопируйте вручную')
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Сохраните ключи участников</CardTitle>
+        <CardTitle>Голосование создано</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <Alert variant="destructive">
-          <AlertTitle>Это единственная возможность увидеть ключи</AlertTitle>
-          <AlertDescription>
-            После ухода со страницы ключи нельзя будет посмотреть снова — только сгенерировать
-            заново. Скопируйте их сейчас.
-          </AlertDescription>
-        </Alert>
-        <div className="flex justify-end">
-          <Button type="button" variant="outline" size="sm" onClick={handleCopyAll}>
+        <p className="text-sm">Поделитесь этой ссылкой с участниками:</p>
+        <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+          <code className="flex-1 truncate font-mono text-sm">{joinUrl}</code>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleCopyLink}
+            aria-label="Скопировать ссылку"
+          >
             <CopyIcon />
-            Скопировать всё
+            Скопировать
           </Button>
         </div>
-        <ul className="flex flex-col gap-2">
-          {accessKeys.map((key, idx) => (
-            <li
-              key={key}
-              className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-muted-foreground w-6 text-right text-xs tabular-nums">
-                  {idx + 1}
-                </span>
-                <code className="font-mono text-sm tracking-wider">{key}</code>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => handleCopyOne(key)}
-                aria-label={`Скопировать ключ ${idx + 1}`}
-              >
-                <CopyIcon />
-                Скопировать
-              </Button>
-            </li>
-          ))}
-        </ul>
+        <p className="text-muted-foreground text-sm">
+          Они зарегистрируются по ссылке, выберут имя и получат свой ключ.
+        </p>
+        <p className="text-muted-foreground text-sm">
+          Управление участниками — в админке: <code>/admin/participants</code>
+        </p>
       </CardContent>
       <CardFooter className="justify-end">
         <Button type="button" onClick={onContinue}>
-          Я сохранил ключи, продолжить
+          Перейти в админку
         </Button>
       </CardFooter>
     </Card>

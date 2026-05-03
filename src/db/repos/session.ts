@@ -5,6 +5,7 @@
  * (updateSessionStage, etc.) will land in their own ticket (ROADMAP P1-03).
  */
 
+import type { Session } from '@prisma/client'
 import { prisma } from '@/db/client'
 
 /**
@@ -20,40 +21,26 @@ export async function getActiveSession() {
 }
 
 /**
- * Atomically create a Session and its initial Participant rows.
+ * Create a Session in STAGE1 with no participants. Participants self-register
+ * later via /join/{joinToken} (see ARCHITECTURE.md "Self-Registration Flow").
  *
- * Used exclusively by POST /api/setup. The Session is born in STAGE1 — the
- * "no session exists" state is represented by the absence of a Session row,
- * not by an enum value (see ARCHITECTURE.md "Stage Machine"). Returns just
- * the Session; callers that need participants re-fetch.
- *
- * Throws on UNIQUE constraint violation if two access keys happen to collide
- * — astronomically unlikely (32^8 ≈ 1.1e12, N ≤ 30) but the transaction will
- * roll back cleanly and the caller surfaces a 500 to the user.
+ * The "no session exists" state is represented by the absence of a Session
+ * row, not by an enum value (see ARCHITECTURE.md "Stage Machine").
  */
-export async function createSessionWithParticipants(params: {
+export async function createSession(params: {
   title: string
   adminPasswordHash: string
   joinToken: string
-  participants: { accessKey: string; accessKeyHash: string }[]
-}) {
-  return prisma.$transaction(async (tx) => {
-    const session = await tx.session.create({
-      data: {
-        title: params.title,
-        adminPasswordHash: params.adminPasswordHash,
-        joinToken: params.joinToken,
-        stage: 'STAGE1',
-      },
-    })
-    await tx.participant.createMany({
-      data: params.participants.map((p) => ({
-        sessionId: session.id,
-        accessKey: p.accessKey,
-        accessKeyHash: p.accessKeyHash,
-      })),
-    })
-    return session
+  maxParticipants: number
+}): Promise<Session> {
+  return prisma.session.create({
+    data: {
+      title: params.title,
+      adminPasswordHash: params.adminPasswordHash,
+      joinToken: params.joinToken,
+      maxParticipants: params.maxParticipants,
+      stage: 'STAGE1',
+    },
   })
 }
 
