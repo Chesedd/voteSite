@@ -53,3 +53,15 @@ export async function createSessionWithParticipants(params: {
     return session
   })
 }
+
+/**
+ * Update a single Session row's title. Throws if no row matches the id —
+ * callers should ensure the session exists (typically by calling this only
+ * after `requireAdmin` + `getActiveSession`).
+ */
+export async function updateSessionTitle(sessionId: string, title: string) {
+  return prisma.session.update({
+    where: { id: sessionId },
+    data: { title },
+  })
+}
