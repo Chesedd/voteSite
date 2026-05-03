@@ -3,11 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
-      <h1 className="text-3xl font-bold tracking-tight">Голосование за песню</h1>
-      <p className="text-muted-foreground text-sm">
-        Скелет проекта. Контент появится в следующих тикетах.
-      </p>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight">Готово к работе</h1>
+        <p className="text-muted-foreground text-sm">
+          Скелет проекта. Контент появится в следующих тикетах.
+        </p>
+      </div>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>shadcn/ui готов</CardTitle>
@@ -17,6 +19,6 @@ export default function Home() {
           <Button>Поехали</Button>
         </CardContent>
       </Card>
-    </main>
+    </div>
   )
 }
