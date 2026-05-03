@@ -12,13 +12,64 @@ const PLACEHOLDER_ADMIN_HASH = '$2b$10$placeholderplaceholderplaceholderplacehol
 const PARTICIPANT_NAMES = ['Алиса', 'Боб', 'Клара', 'Денис', 'Ева'] as const
 
 // submitterIdx points into PARTICIPANT_NAMES. Distribution: Алиса 3, Боб 2, Клара 1.
+// Service metadata uses placeholder values so P4-05 (TrackEmbed) has realistic
+// shapes to render against. The IDs are not required to resolve to real songs.
+const YANDEX_COVER = 'https://avatars.yandex.net/get-music-content/dummy/cover.jpg'
 const TRACKS = [
-  { submitterIdx: 0, title: 'Город спит', artist: 'Кино' },
-  { submitterIdx: 0, title: 'Прогулки по воде', artist: 'Наутилус Помпилиус' },
-  { submitterIdx: 0, title: 'Скованные одной цепью', artist: 'Наутилус Помпилиус' },
-  { submitterIdx: 1, title: 'Вечно молодой', artist: 'Смысловые галлюцинации' },
-  { submitterIdx: 1, title: 'Я свободен', artist: 'Кипелов' },
-  { submitterIdx: 2, title: 'Группа крови', artist: 'Кино' },
+  {
+    submitterIdx: 0,
+    title: 'Город спит',
+    artist: 'Кино',
+    service: 'yandex',
+    serviceTrackId: '12345',
+    coverUrl: YANDEX_COVER,
+    embedSupported: true,
+  },
+  {
+    submitterIdx: 0,
+    title: 'Прогулки по воде',
+    artist: 'Наутилус Помпилиус',
+    service: 'yandex',
+    serviceTrackId: '12346',
+    coverUrl: YANDEX_COVER,
+    embedSupported: true,
+  },
+  {
+    submitterIdx: 0,
+    title: 'Скованные одной цепью',
+    artist: 'Наутилус Помпилиус',
+    service: 'yandex',
+    serviceTrackId: '12347',
+    coverUrl: YANDEX_COVER,
+    embedSupported: true,
+  },
+  {
+    submitterIdx: 1,
+    title: 'Вечно молодой',
+    artist: 'Смысловые галлюцинации',
+    service: 'yandex',
+    serviceTrackId: '12348',
+    coverUrl: YANDEX_COVER,
+    embedSupported: true,
+  },
+  {
+    submitterIdx: 1,
+    title: 'Я свободен',
+    artist: 'Кипелов',
+    service: 'youtube',
+    serviceTrackId: 'dQw4w9WgXcQ',
+    coverUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+    embedSupported: true,
+  },
+  {
+    submitterIdx: 2,
+    title: 'Группа крови',
+    artist: 'Кино',
+    service: 'vk',
+    serviceTrackId: null,
+    coverUrl: null,
+    embedSupported: false,
+  },
 ] as const
 
 // Three of five participants cast a full top-3. Денис and Ева abstain so the
@@ -76,6 +127,10 @@ async function main() {
             submittedById: participants[t.submitterIdx].id,
             title: t.title,
             artist: t.artist,
+            service: t.service,
+            serviceTrackId: t.serviceTrackId,
+            coverUrl: t.coverUrl,
+            embedSupported: t.embedSupported,
           },
         }),
       ),

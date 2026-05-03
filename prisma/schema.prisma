@@ -53,14 +53,18 @@ model Participant {
 }
 
 model Track {
-  id            String   @id @default(cuid())
-  sessionId     String
-  submittedById String
-  title         String
-  artist        String?
-  url           String?
-  description   String?
-  createdAt     DateTime @default(now())
+  id             String   @id @default(cuid())
+  sessionId      String
+  submittedById  String
+  title          String
+  artist         String?
+  url            String?
+  description    String?
+  service        String?
+  serviceTrackId String?
+  coverUrl       String?
+  embedSupported Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
   session     Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   submittedBy Participant @relation("ParticipantSubmittedTracks", fields: [submittedById], references: [id], onDelete: Cascade)
