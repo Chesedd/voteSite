@@ -63,4 +63,16 @@ The app talks to Postgres via Prisma. We use [Neon](https://neon.tech) for a fre
    pnpm db:studio
    ```
 
-The schema currently has no models — those land in ticket P1-01.
+### Seeding the database
+
+The seed script lives at `prisma/seed.ts` and creates a test session in `STAGE2` with five
+participants, six tracks, and three full ballots so the voting and results UI have data to render.
+
+```bash
+pnpm prisma migrate dev --name init   # run once, on first setup
+pnpm prisma db seed                   # refresh test data anytime (idempotent)
+```
+
+The seed wipes existing rows before inserting, so it is safe to rerun. Test participant access
+keys (`TESTKEY1`–`TESTKEY5`) are printed at the end of each run; use them to log in as a
+participant during development.
