@@ -225,7 +225,7 @@ setup → stage1 → stage2 → finished
   - `Participant`: `(sessionId, accessKeyHash)`
   - `Vote`: `(participantId, rank)`, `(participantId, trackId)`
 - Поля `createdAt`/`updatedAt` через `@default(now())` и `@updatedAt`
-- `stage` как enum `SessionStage` (`SETUP`, `STAGE1`, `STAGE2`, `FINISHED`)
+- `stage` как enum `SessionStage` (`STAGE1`, `STAGE2`, `FINISHED`)
 
 **Depends on**: P0-04
 
