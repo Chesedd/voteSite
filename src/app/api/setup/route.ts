@@ -9,10 +9,10 @@
  * response is sent, the keys exist nowhere on the server (DB stores only
  * SHA-256 hashes). The admin must save them now or regenerate later.
  *
- * Stage choice: the new Session is created with stage = STAGE1. There is no
- * "empty" pre-stage — by the time the row is committed, participants already
- * exist, so the row is born ready for stage 1 submissions. See
- * docs/ARCHITECTURE.md "Stage Machine".
+ * Stage choice: the new Session is created with stage = STAGE1, NOT SETUP.
+ * The SETUP stage value only exists conceptually before this endpoint runs —
+ * by the time the row is committed, participants already exist, so we skip
+ * the empty SETUP state. See docs/ARCHITECTURE.md "Stage Machine".
  *
  * Auth: none. The endpoint is gated by the application-level invariant
  * "exactly one Session row at a time" — the transaction re-checks for an

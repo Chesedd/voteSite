@@ -24,7 +24,6 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the full plan and ticket breakdown.
 | `pnpm db:studio` | Open Prisma Studio against the configured database |
 | `pnpm db:migrate` | `prisma migrate dev` (pass `--name <slug>` for the first/new migrations) |
 | `pnpm db:migrate:deploy` | `prisma migrate deploy` (production) |
-| `pnpm db:reset` | `prisma migrate reset --force --skip-seed` (wipes the dev DB) |
 | `pnpm db:seed` | Run `prisma/seed.ts` |
 
 All `db:*` scripts wrap Prisma with [`dotenv-cli`](https://github.com/entropitor/dotenv-cli) so they read `.env.local` (Prisma's CLI itself only reads `.env`). Invoke them via the `db:*` scripts instead of calling `pnpm prisma ...` directly.
@@ -83,6 +82,3 @@ pnpm db:seed                  # refresh test data anytime (idempotent)
 The seed wipes existing rows before inserting, so it is safe to rerun. Test participant access
 keys (`TESTKEY1`–`TESTKEY5`) are printed at the end of each run; use them to log in as a
 participant during development.
-
-To wipe the dev database without re-seeding, run `pnpm db:reset`. To wipe and re-seed, run
-`pnpm db:reset` followed by `pnpm db:seed`.
