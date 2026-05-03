@@ -10,7 +10,6 @@ The full plan lives in `docs/ROADMAP.md` (tickets, phases, statuses). Architectu
 
 ```bash
 pnpm install
-pnpm db:generate           # required after install — prisma postinstall is opt-in
 cp .env.example .env.local # fill DATABASE_URL and DIRECT_URL from Neon
 pnpm dev                   # http://localhost:3000
 ```
@@ -112,13 +111,7 @@ REGISTRY_URL=https://raw.githubusercontent.com/shadcn-ui/ui/main/apps/v4/public/
   pnpm dlx shadcn@latest add <component>
 ```
 
-**pnpm postinstall scripts are opt-in** (security feature, pnpm v9+). The `package.json` should have:
-
-```json
-"pnpm": { "onlyBuiltDependencies": ["@prisma/client", "prisma"] }
-```
-
-Without this, `pnpm install` does not regenerate the Prisma client and downstream commands fail mysteriously.
+**pnpm postinstall scripts are opt-in** (security feature, pnpm v9+). The package.json already whitelists @prisma/client and prisma under pnpm.onlyBuiltDependencies. If you add another dependency that needs a build step (rare), add it to that list — otherwise pnpm install will silently skip its postinstall.
 
 **Version pins** (do not bump without an explicit ticket):
 - Next.js 15.5.x (not 16)
