@@ -32,6 +32,7 @@ Prisma scripts are wrapped with `dotenv-cli` so they read `.env.local` (the Pris
 | `pnpm db:studio` | Open Prisma Studio in browser |
 | `pnpm db:migrate` | `prisma migrate dev` (pass `--name <slug>` for new migrations) |
 | `pnpm db:migrate:deploy` | `prisma migrate deploy` (production) |
+| `pnpm db:reset` | `prisma migrate reset --force --skip-seed` (wipes the dev DB; chain with `pnpm db:seed` to re-seed) |
 | `pnpm db:seed` | Run `prisma/seed.ts` against the configured database |
 
 Before pushing any PR: run `pnpm lint && pnpm format:check && pnpm typecheck && pnpm build`. All four must be clean.
@@ -85,6 +86,8 @@ Never return raw values, never throw from a route handler without catching to th
 **Imports**: absolute via `@/` alias (e.g. `@/lib/auth/guards`). Avoid `../../..` chains.
 
 **Stage gating**: every endpoint that depends on the current stage uses the `assertStage(session, ...allowedStages)` helper. Never write inline `if (session.stage !== 'STAGE1')` checks — they drift and miss cases.
+
+**Pages with force-dynamic**: every page under `src/app/` that reads from the database, cookies, or auth state must export `export const dynamic = 'force-dynamic'`. This is the default for this app — there are no static pages. If you write a new page, add this line first.
 
 **Auth guards**: route handlers call `requireAdmin()` / `requireParticipant()` from `@/lib/auth/guards`. Guards `throw` a `Response` (built with `err(...)` from `@/lib/api/responses`) on 401/403 so callers stay flat. Wrap handler bodies in a `try/catch` that re-returns thrown `Response` instances:
 
