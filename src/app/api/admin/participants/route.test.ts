@@ -53,6 +53,7 @@ function fakeParticipant(overrides: Partial<ParticipantPublic> = {}): Participan
   return {
     id: 'p_seed',
     displayName: null,
+    accessKey: 'KEY00000',
     hasJoined: false,
     lastSeenAt: null,
     createdAt: new Date('2026-05-03T00:00:00Z'),
@@ -85,29 +86,35 @@ beforeEach(() => {
 })
 
 describe('GET /api/admin/participants', () => {
-  it('returns 401 UNAUTHORIZED when there is no auth', async () => {
+  it('returns 401 UNAUTHORIZED when there is no auth (and never returns accessKey)', async () => {
     setHeaders({})
     const res = await GET()
     expect(res.status).toBe(401)
-    const body = (await res.json()) as ApiError
+    const raw = await res.text()
+    // Defensive: a 401 must never leak any access key — even if a future
+    // refactor accidentally short-circuits the guard, this catches it.
+    expect(raw).not.toMatch(/accessKey/i)
+    const body = JSON.parse(raw) as ApiError
     expect(body.error.code).toBe('UNAUTHORIZED')
     expect(mockedListParticipants).not.toHaveBeenCalled()
   })
 
-  it('returns 403 FORBIDDEN when the actor is a participant', async () => {
+  it('returns 403 FORBIDDEN when the actor is a participant (and never returns accessKey)', async () => {
     participantHeaders()
     const res = await GET()
     expect(res.status).toBe(403)
-    const body = (await res.json()) as ApiError
+    const raw = await res.text()
+    expect(raw).not.toMatch(/accessKey/i)
+    const body = JSON.parse(raw) as ApiError
     expect(body.error.code).toBe('FORBIDDEN')
     expect(mockedListParticipants).not.toHaveBeenCalled()
   })
 
-  it('returns the listing for the admin session, never including accessKeyHash', async () => {
+  it('returns the listing including plaintext accessKey, but never accessKeyHash or sessionId', async () => {
     adminHeaders()
     mockedListParticipants.mockResolvedValue([
-      fakeParticipant({ id: 'p_1', displayName: 'Аня', hasJoined: true }),
-      fakeParticipant({ id: 'p_2' }),
+      fakeParticipant({ id: 'p_1', displayName: 'Аня', hasJoined: true, accessKey: 'AAAA1111' }),
+      fakeParticipant({ id: 'p_2', accessKey: 'BBBB2222' }),
     ])
 
     const res = await GET()
@@ -115,6 +122,8 @@ describe('GET /api/admin/participants', () => {
     const body = (await res.json()) as ApiSuccess<ParticipantPublic[]>
     expect(body.ok).toBe(true)
     expect(body.data).toHaveLength(2)
+    expect(body.data[0].accessKey).toBe('AAAA1111')
+    expect(body.data[1].accessKey).toBe('BBBB2222')
     for (const p of body.data) {
       expect(p).not.toHaveProperty('accessKeyHash')
       expect(p).not.toHaveProperty('sessionId')

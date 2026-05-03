@@ -1,15 +1,19 @@
 /**
  * /api/admin/participants — list and bulk-create participants.
  *
- * GET:  200 { ok: true, data: ParticipantPublic[] }
+ * GET:  200 { ok: true, data: ParticipantPublic[] }  (each row includes plaintext accessKey)
  *       errors: 401 UNAUTHORIZED | 403 FORBIDDEN
  *
  * POST: 200 { ok: true, data: { accessKeys: string[] } }
  *       errors: 400 INVALID_INPUT | 400 LIMIT_EXCEEDED | 401 UNAUTHORIZED | 403 FORBIDDEN
  *
- * The POST response is the only place plaintext access keys are exposed for
- * newly-added participants — same one-shot UX as POST /api/setup. Hashes are
- * persisted; the plaintext exists only in the response body, then nowhere.
+ * SECURITY INVARIANT: this is the ONLY GET endpoint that returns plaintext
+ * accessKey values. Every handler here goes through `requireAdmin`, which
+ * rejects unauthenticated callers (401) and participant-token callers (403)
+ * before any data is read. Plaintext keys MUST NEVER appear on a
+ * non-admin-gated route or in any response body that flows to a participant
+ * client. If you add a new endpoint that exposes participant data, mirror
+ * this guard and explicitly drop `accessKey` from the response shape.
  */
 
 import { z } from 'zod'

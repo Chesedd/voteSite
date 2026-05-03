@@ -141,6 +141,8 @@ Implementation lives in `src/lib/stage.ts` as a pure `canTransition(from, to)` f
 
 `revealResults` is a `Session.settings` flag, toggled by the admin only when stage = FINISHED.
 
+`Participant.accessKey` (plaintext) is **admin-only** at every stage. It is exposed only on `/api/admin/*` endpoints (which `requireAdmin`); never on `/api/auth/participant`, `/api/me`, or any participant-facing route.
+
 ## Track URL Handling
 
 Tracks are submitted with a URL. The server parses the URL, classifies the service, fetches metadata, and decides whether an inline player can be rendered.
@@ -284,11 +286,25 @@ Conventions:
 
 | Method | Path | Auth | Body | Returns |
 |---|---|---|---|---|
-| GET | `/api/admin/participants` | admin | — | `{ ok: true, data: Participant[] }` |
+| GET | `/api/admin/participants` | admin | — | `{ ok: true, data: ParticipantPublic[] }` |
 | POST | `/api/admin/participants` | admin | `{ count }` | `{ ok: true, data: { accessKeys: string[] } }` |
-| PATCH | `/api/admin/participants/:id` | admin | `{ displayName? }` | `{ ok: true, data: Participant }` |
+| PATCH | `/api/admin/participants/:id` | admin | `{ displayName? }` | `{ ok: true, data: { participant: ParticipantPublic } }` |
 | POST | `/api/admin/participants/:id/regenerate` | admin | — | `{ ok: true, data: { accessKey: string } }` |
 | DELETE | `/api/admin/participants/:id` | admin | — | `{ ok: true }` |
+
+`ParticipantPublic`:
+```ts
+{
+  id: string
+  displayName: string | null
+  accessKey: string      // plaintext; admin-only — see Visibility Matrix
+  hasJoined: boolean
+  lastSeenAt: string | null  // ISO timestamp
+  createdAt: string          // ISO timestamp
+}
+```
+
+`accessKey` is plaintext and exposed only on these admin-gated endpoints. It MUST NOT appear in any participant-facing response — `/api/auth/participant`, `/api/me`, `/api/tracks`, `/api/votes/*` etc. all keep their reduced shapes.
 
 ### Current participant
 

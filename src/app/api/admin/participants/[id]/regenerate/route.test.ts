@@ -44,6 +44,7 @@ function fakeParticipant(overrides: Partial<ParticipantPublic> = {}): Participan
   return {
     id: 'p_1',
     displayName: null,
+    accessKey: 'NEWKEY12',
     hasJoined: false,
     lastSeenAt: null,
     createdAt: new Date('2026-05-03T00:00:00Z'),

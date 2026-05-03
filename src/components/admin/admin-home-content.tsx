@@ -7,6 +7,7 @@
 
 import type { Session } from '@prisma/client'
 
+import { JoinLinkCard } from '@/components/admin/join-link-card'
 import { RenameSessionDialog } from '@/components/admin/rename-session-dialog'
 import { StageBadge } from '@/components/admin/stage-badge'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,14 @@ export function AdminHomeContent({ session, overview }: AdminHomeContentProps) {
           </dl>
         </CardContent>
       </Card>
+      <div className="md:col-span-2">
+        <JoinLinkCard
+          joinToken={session.joinToken}
+          maxParticipants={session.maxParticipants}
+          registered={overview.participants}
+          stage={session.stage}
+        />
+      </div>
       <Card className="md:col-span-2">
         <CardHeader>
           <CardTitle>Действия</CardTitle>

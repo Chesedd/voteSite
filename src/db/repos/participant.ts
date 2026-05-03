@@ -21,13 +21,16 @@ function client(tx?: PrismaTxClient) {
 }
 
 /**
- * Public, sortable view of a Participant. Excludes `accessKeyHash` and
- * `sessionId` so callers can pass it straight through to API responses
- * without re-shaping. See ARCHITECTURE.md "API Endpoints → Participants".
+ * Admin-facing view of a Participant. Includes plaintext `accessKey` so the
+ * /admin/participants UI can show + copy it. Excludes `accessKeyHash` and
+ * `sessionId`. This shape MUST NOT leak into participant-facing responses —
+ * see ARCHITECTURE.md "API Endpoints → Participants (admin)" and
+ * "Visibility Matrix": `accessKey` is admin-only.
  */
 export type ParticipantPublic = {
   id: string
   displayName: string | null
+  accessKey: string
   hasJoined: boolean
   lastSeenAt: Date | null
   createdAt: Date
@@ -37,6 +40,7 @@ function toPublic(p: Participant): ParticipantPublic {
   return {
     id: p.id,
     displayName: p.displayName,
+    accessKey: p.accessKey,
     hasJoined: p.hasJoined,
     lastSeenAt: p.lastSeenAt,
     createdAt: p.createdAt,
