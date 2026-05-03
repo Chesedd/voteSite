@@ -57,6 +57,10 @@ Track
   artist          String?
   url             String?
   description     String?
+  service         String?  // 'yandex' | 'spotify' | 'youtube' | 'vk' | 'apple' | 'soundcloud' | 'other'
+  serviceTrackId  String?  // For embed URL construction (yandex/spotify/youtube only)
+  coverUrl        String?
+  embedSupported  Boolean  @default(false)
   createdAt       DateTime @default(now())
 
 Vote
@@ -69,6 +73,8 @@ Vote
   @@unique([participantId, rank])    // one vote per rank per participant
   @@unique([participantId, trackId]) // one rank per track per participant
 ```
+
+> Note: service/serviceTrackId/coverUrl/embedSupported are added by a later migration in Phase 4 (see ROADMAP P4-01b). Phase 1 schema does not include them.
 
 ### Settings (JSONB on Session)
 
@@ -124,6 +130,51 @@ Implementation lives in `src/lib/stage.ts` as a pure `canTransition(from, to)` f
 | Admin sees everything | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 `revealResults` is a `Session.settings` flag, toggled by the admin only when stage = FINISHED.
+
+## Track URL Handling
+
+Tracks are submitted with a URL. The server parses the URL, classifies the service, fetches metadata, and decides whether an inline player can be rendered.
+
+### Supported services
+
+| Service | Detection | Embed player | Embed URL pattern |
+|---|---|---|---|
+| Yandex Music | hostname `music.yandex.*`, path `/album/X/track/Y` or `/track/Y` | ✅ | `https://music.yandex.ru/iframe/#track/{trackId}/{albumId}` |
+| Spotify | hostname `open.spotify.com`, path `/track/{id}` | ✅ | `https://open.spotify.com/embed/track/{id}` |
+| YouTube | hostnames `youtube.com`, `youtu.be`, `music.youtube.com` | ✅ | `https://www.youtube.com/embed/{videoId}` |
+| VK Music | hostname `vk.com`, path `/audio*` | ❌ (VK closed audio API in 2016, no public embed) | — |
+| Apple Music, SoundCloud, Bandcamp, Deezer, etc. | hostname match | ❌ (out of scope) | — |
+| Anything else | fallback | ❌ | — |
+
+### Detection function
+
+`src/lib/track-url.ts` exports a pure function:
+
+```ts
+type ServiceMatch =
+  | { kind: 'yandex' | 'spotify' | 'youtube'; serviceTrackId: string; embedUrl: string }
+  | { kind: 'vk' | 'apple' | 'soundcloud' | 'other'; serviceTrackId: null; embedUrl: null }
+
+function detectService(url: string): ServiceMatch | null  // null = unparseable URL
+```
+
+Pure function, fully unit-tested with example URLs from each service plus malformed inputs.
+
+### Metadata extraction
+
+For all detected services (including non-embed-able), the server fetches the public share page and parses OpenGraph meta tags to extract:
+- `og:title` → fallback for `title` field
+- `og:image` → `coverUrl`
+- `og:site_name` or `og:description` → fallback for `artist`
+
+User-entered title/artist always override OG-extracted values. Metadata fetch happens once at submission time and is cached in the Track row.
+
+### Implementation notes
+
+- Server-side fetch only (no CORS issues). Use a generic User-Agent string; some services rate-limit or block requests with no UA.
+- Timeout: 5 seconds. On timeout/failure, save the Track without metadata — user can still submit.
+- Do NOT fetch on every render. coverUrl is stored in DB.
+- The fetch happens in the POST /api/tracks/preview endpoint (admin-side preflight) and again in POST /api/tracks (authoritative). Preview endpoint is for UI auto-fill before user clicks Submit.
 
 ## Auth Flow
 
@@ -209,10 +260,13 @@ Conventions:
 
 | Method | Path | Auth | Body | Returns | Stage gate |
 |---|---|---|---|---|---|
+| POST | `/api/tracks/preview` | participant | `{ url }` | `{ ok: true, data: { service, serviceTrackId, embedSupported, suggestedTitle?, suggestedArtist?, coverUrl? } }` | STAGE1 only |
 | GET | `/api/tracks` | participant | — | `{ ok: true, data: TrackPublic[] }` | STAGE1, STAGE2, FINISHED |
-| POST | `/api/tracks` | participant | `{ title, artist?, url?, description? }` | `{ ok: true, data: Track }` | STAGE1 only |
+| POST | `/api/tracks` | participant | `{ title, artist?, url?, description?, service?, serviceTrackId?, coverUrl?, embedSupported? }` | `{ ok: true, data: Track }` | STAGE1 only |
 | PATCH | `/api/tracks/:id` | participant (own only) | partial | `{ ok: true, data: Track }` | STAGE1 only |
 | DELETE | `/api/tracks/:id` | participant (own) OR admin | — | `{ ok: true }` | STAGE1 (own); admin any time |
+
+`service`/`serviceTrackId`/`coverUrl`/`embedSupported` on POST `/api/tracks` are typically populated by the client from the `/api/tracks/preview` response, but the server re-validates and may overwrite them.
 
 `TrackPublic` shape: `{ id, title, artist, url, description, submittedBy: { id, displayName } }`. No internal fields.
 
