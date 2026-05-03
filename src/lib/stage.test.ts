@@ -1,31 +1,38 @@
 import { describe, expect, it } from 'vitest'
 
-import { StageMismatchError, assertStage } from './stage'
+import { assertStage } from './stage'
+import type { ApiError } from '@/lib/api/responses'
+
+async function captureThrown(fn: () => unknown): Promise<Response> {
+  try {
+    fn()
+  } catch (e) {
+    if (e instanceof Response) return e
+    throw e
+  }
+  throw new Error('expected assertStage to throw a Response')
+}
 
 describe('assertStage', () => {
-  it('passes silently when the session stage matches', () => {
+  it('returns silently when stage matches', () => {
     expect(() => assertStage({ stage: 'STAGE1' }, 'STAGE1')).not.toThrow()
   })
 
-  it('throws StageMismatchError when the session stage is not allowed', () => {
-    expect(() => assertStage({ stage: 'STAGE2' }, 'STAGE1')).toThrow(StageMismatchError)
-  })
-
-  it('passes when the session stage is one of multiple allowed stages', () => {
+  it('returns silently when stage matches one of multiple allowed', () => {
     expect(() => assertStage({ stage: 'STAGE2' }, 'STAGE1', 'STAGE2')).not.toThrow()
-    expect(() => assertStage({ stage: 'FINISHED' }, 'STAGE1', 'STAGE2')).toThrow(StageMismatchError)
   })
 
-  it('error carries actual and allowed fields', () => {
-    try {
-      assertStage({ stage: 'FINISHED' }, 'STAGE1', 'STAGE2')
-      throw new Error('expected throw')
-    } catch (e) {
-      expect(e).toBeInstanceOf(StageMismatchError)
-      const err = e as StageMismatchError
-      expect(err.actual).toBe('FINISHED')
-      expect(err.allowed).toEqual(['STAGE1', 'STAGE2'])
-      expect(err.name).toBe('StageMismatchError')
-    }
+  it('throws a 400 INVALID_STAGE Response when stage does not match', async () => {
+    const res = await captureThrown(() => assertStage({ stage: 'STAGE2' }, 'STAGE1'))
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as ApiError
+    expect(body.error.code).toBe('INVALID_STAGE')
+  })
+
+  it('throws when no allowed stages are passed', async () => {
+    const res = await captureThrown(() => assertStage({ stage: 'STAGE1' }))
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as ApiError
+    expect(body.error.code).toBe('INVALID_STAGE')
   })
 })
