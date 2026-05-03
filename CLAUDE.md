@@ -86,6 +86,20 @@ Never return raw values, never throw from a route handler without catching to th
 
 **Stage gating**: every endpoint that depends on the current stage uses the `assertStage(session, ...allowedStages)` helper. Never write inline `if (session.stage !== 'STAGE1')` checks — they drift and miss cases.
 
+**Auth guards**: route handlers call `requireAdmin()` / `requireParticipant()` from `@/lib/auth/guards`. Guards `throw` a `Response` (built with `err(...)` from `@/lib/api/responses`) on 401/403 so callers stay flat. Wrap handler bodies in a `try/catch` that re-returns thrown `Response` instances:
+
+```ts
+export async function POST() {
+  try {
+    const admin = await requireAdmin()
+    return ok({ sessionId: admin.sessionId })
+  } catch (e) {
+    if (e instanceof Response) return e
+    throw e
+  }
+}
+```
+
 **Hashing**:
 - Admin password → bcrypt
 - Participant access keys → SHA-256 (one-way; participants enter their key on every login, but we never store plaintext)
