@@ -1,4 +1,4 @@
-// Prisma schema. Models are defined in P1-01.
+// Prisma schema.
 // https://pris.ly/d/prisma-schema
 
 generator client {
@@ -11,4 +11,75 @@ datasource db {
   url       = env("DATABASE_URL")
   // Direct connection for migrations and introspection (Neon direct URL).
   directUrl = env("DIRECT_URL")
+}
+
+enum SessionStage {
+  SETUP
+  STAGE1
+  STAGE2
+  FINISHED
+}
+
+model Session {
+  id                String       @id @default(cuid())
+  title             String
+  stage             SessionStage @default(SETUP)
+  adminPasswordHash String
+  settings          Json         @default("{}")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  participants Participant[]
+  tracks       Track[]
+  votes        Vote[]
+}
+
+model Participant {
+  id            String    @id @default(cuid())
+  sessionId     String
+  accessKeyHash String
+  displayName   String?
+  hasJoined     Boolean   @default(false)
+  lastSeenAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  session         Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  submittedTracks Track[] @relation("ParticipantSubmittedTracks")
+  votes           Vote[]
+
+  @@unique([sessionId, accessKeyHash])
+}
+
+model Track {
+  id            String   @id @default(cuid())
+  sessionId     String
+  submittedById String
+  title         String
+  artist        String?
+  url           String?
+  description   String?
+  createdAt     DateTime @default(now())
+
+  session     Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  submittedBy Participant @relation("ParticipantSubmittedTracks", fields: [submittedById], references: [id], onDelete: Cascade)
+  votes       Vote[]
+
+  @@index([sessionId])
+}
+
+model Vote {
+  id            String   @id @default(cuid())
+  sessionId     String
+  participantId String
+  trackId       String
+  rank          Int
+  updatedAt     DateTime @updatedAt
+
+  session     Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  track       Track       @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([participantId, rank])
+  @@unique([participantId, trackId])
+  @@index([sessionId])
 }

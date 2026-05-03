@@ -213,7 +213,7 @@ setup → stage1 → stage2 → finished
 
 Цель: рабочая БД с миграциями и типизированным доступом.
 
-#### TICKET-P1-01 ⬜ — Prisma schema
+#### TICKET-P1-01 🟡 — Prisma schema
 
 **Scope**: `prisma/schema.prisma`
 **Deliverable**: полная схема данных
