@@ -14,6 +14,10 @@ export async function findParticipantByKeyHash(sessionId: string, accessKeyHash:
   })
 }
 
+export async function getParticipantById(id: string) {
+  return prisma.participant.findUnique({ where: { id } })
+}
+
 export async function markParticipantJoined(participantId: string, now: Date = new Date()) {
   return prisma.participant.update({
     where: { id: participantId },
