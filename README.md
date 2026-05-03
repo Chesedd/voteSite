@@ -56,11 +56,8 @@ The app talks to Postgres via Prisma. We use [Neon](https://neon.tech) for a fre
    cp .env.example .env.local
    ```
    Fill in `DATABASE_URL` and `DIRECT_URL` with the values from Neon. `.env.local` is git-ignored.
-4. **Generate the Prisma client.**
-   ```bash
-   pnpm db:generate
-   ```
-   Run this whenever `prisma/schema.prisma` changes.
+4. **Regenerate the Prisma client after schema changes.**
+   `pnpm install` already runs `prisma generate` (the `@prisma/client` postinstall is whitelisted via `pnpm.onlyBuiltDependencies`). Run `pnpm db:generate` only when you edit `prisma/schema.prisma` between installs.
 5. **(Optional) Open Prisma Studio.**
    ```bash
    pnpm db:studio
