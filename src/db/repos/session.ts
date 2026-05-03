@@ -22,10 +22,11 @@ export async function getActiveSession() {
 /**
  * Atomically create a Session and its initial Participant rows.
  *
- * Used exclusively by POST /api/setup. The Session is born in STAGE1 — by the
- * time the row is committed, participants already exist (see ARCHITECTURE.md
- * "Stage Machine"). Returns just the Session; callers that need participants
- * re-fetch.
+ * Used exclusively by POST /api/setup. The Session is born in STAGE1 because
+ * the SETUP stage value only exists conceptually before this transaction runs
+ * — by the time the row is committed, participants already exist (see
+ * ARCHITECTURE.md "Stage Machine"). Returns just the Session; callers that
+ * need participants re-fetch.
  *
  * Throws on UNIQUE constraint violation if two access keys happen to collide
  * — astronomically unlikely (32^8 ≈ 1.1e12, N ≤ 30) but the transaction will

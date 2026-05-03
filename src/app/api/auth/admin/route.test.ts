@@ -27,7 +27,7 @@ function fakeSession(overrides: Partial<SessionRow> = {}): SessionRow {
   return {
     id: 'sess_1',
     title: 'Test',
-    stage: 'STAGE1',
+    stage: 'SETUP',
     adminPasswordHash: '$2b$10$fakeFakeFakeFakeFakeFu',
     settings: {},
     createdAt: now,
