@@ -95,22 +95,29 @@ When a `Session` is deleted, all participants/tracks/votes cascade. When a `Part
 ## Stage Machine
 
 ```
-SETUP ──[admin completes initial setup]──▶ STAGE1
-                                              │
-                                              [admin advances]
-                                              ▼
-                                            STAGE2
-                                              │
-                                              [admin advances]
-                                              ▼
-                                           FINISHED
+(no session) ──[POST /api/setup]──▶ STAGE1
+                                       │
+                                       [admin advances]
+                                       ▼
+                                     STAGE2
+                                       │
+                                       [admin advances]
+                                       ▼
+                                    FINISHED
 ```
+
+The `SETUP` enum value still exists in `SessionStage` (Prisma schema default),
+but in practice no Session row ever lives in it: `POST /api/setup` creates the
+Session and its Participant rows in a single transaction, so the row is born
+in `STAGE1`. `SETUP` therefore represents "no Session row exists yet" rather
+than a stored state. We don't drop the enum value to avoid a non-trivial
+migration; treat it as a leftover, not a transition target.
 
 ### Allowed Transitions
 
 | From | To | Conditions | Side effects |
 |---|---|---|---|
-| SETUP | STAGE1 | At least 2 participants exist | None |
+| (no session) | STAGE1 | `POST /api/setup` with valid input and ≥2 participants requested | Creates Session + N Participants atomically. |
 | STAGE1 | STAGE2 | ≥3 tracks from ≥2 distinct authors | None |
 | STAGE2 | FINISHED | none | None |
 | STAGE2 | STAGE1 (rollback) | none | Votes preserved (frozen). UI shows warning. |
@@ -121,6 +128,9 @@ All other transitions: forbidden, return 400 with code `INVALID_STAGE_TRANSITION
 Implementation lives in `src/lib/stage.ts` as a pure `canTransition(from, to)` function plus `getTransitionRequirements(session, to)`. Both are unit-tested.
 
 ### Visibility Matrix
+
+(`SETUP` column kept for completeness even though no Session row should ever
+be in this state — see "Stage Machine" above.)
 
 | | SETUP | STAGE1 | STAGE2 | FINISHED (hidden) | FINISHED (revealed) |
 |---|---|---|---|---|---|
