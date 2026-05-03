@@ -123,7 +123,7 @@ setup → stage1 → stage2 → finished
 
 Цель: рабочий скелет, в который можно начать класть фичи. На выходе — `pnpm dev` поднимает пустую страницу с подключенной БД.
 
-#### TICKET-P0-01 ⬜ — Init Next.js project
+#### TICKET-P0-01 ✅ — Init Next.js project (PR #1)
 
 **Scope**: корень репо
 **Deliverable**: инициализированный Next.js 15 проект с TypeScript, Tailwind, App Router, pnpm
@@ -139,7 +139,7 @@ setup → stage1 → stage2 → finished
 
 ---
 
-#### TICKET-P0-02 ⬜ — Linting and formatting
+#### TICKET-P0-02 ✅ — Linting and formatting (PR #2)
 
 **Scope**: `eslint.config.mjs`, `.prettierrc`, package.json scripts
 **Deliverable**: рабочий lint + format pipeline
@@ -153,7 +153,7 @@ setup → stage1 → stage2 → finished
 
 ---
 
-#### TICKET-P0-03 ⬜ — shadcn/ui setup
+#### TICKET-P0-03 ✅ — shadcn/ui setup (PR #3)
 
 **Scope**: `components.json`, `src/components/ui/`
 **Deliverable**: shadcn/ui инициализирован, базовые компоненты добавлены
@@ -167,7 +167,7 @@ setup → stage1 → stage2 → finished
 
 ---
 
-#### TICKET-P0-04 ⬜ — Prisma + Postgres setup
+#### TICKET-P0-04 ✅ — Prisma + Postgres setup (PR #5)
 
 **Scope**: `prisma/`, `src/db/`, `.env.example`
 **Deliverable**: подключение к Neon, рабочий `db/client.ts`
@@ -182,7 +182,7 @@ setup → stage1 → stage2 → finished
 
 ---
 
-#### TICKET-P0-05 ⬜ — Base layout and theming
+#### TICKET-P0-05 ✅ — Base layout and theming (PR #6)
 
 **Scope**: `src/app/layout.tsx`, `src/components/theme-provider.tsx`
 **Deliverable**: базовый layout с тёмной темой
@@ -196,7 +196,7 @@ setup → stage1 → stage2 → finished
 
 ---
 
-#### TICKET-P0-06 ⬜ — CLAUDE.md and docs
+#### TICKET-P0-06 ✅ — CLAUDE.md and docs (this PR)
 
 **Scope**: `CLAUDE.md` (корень), `docs/ARCHITECTURE.md`
 **Deliverable**: документация для последующих сессий Claude Code
