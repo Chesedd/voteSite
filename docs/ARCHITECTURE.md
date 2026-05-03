@@ -317,14 +317,30 @@ Conventions:
 | Method | Path | Auth | Body | Returns | Stage gate |
 |---|---|---|---|---|---|
 | POST | `/api/tracks/preview` | participant | `{ url }` | `{ ok: true, data: { service, serviceTrackId, embedSupported, suggestedTitle?, suggestedArtist?, coverUrl? } }` | STAGE1 only |
-| GET | `/api/tracks` | participant | — | `{ ok: true, data: TrackPublic[] }` | STAGE1, STAGE2, FINISHED |
-| POST | `/api/tracks` | participant | `{ title, artist?, url?, description?, service?, serviceTrackId?, coverUrl?, embedSupported? }` | `{ ok: true, data: Track }` | STAGE1 only |
-| PATCH | `/api/tracks/:id` | participant (own only) | partial | `{ ok: true, data: Track }` | STAGE1 only |
+| GET | `/api/tracks` | participant or admin | — | `{ ok: true, data: TrackPublic[] }` | STAGE1, STAGE2, FINISHED |
+| POST | `/api/tracks` | participant | `{ title, artist?, url?, description?, service?, serviceTrackId?, coverUrl?, embedSupported? }` | `{ ok: true, data: TrackPublic }` | STAGE1 only |
+| PATCH | `/api/tracks/:id` | participant (own only) OR admin | partial | `{ ok: true, data: TrackPublic }` | STAGE1 (own); admin any time |
 | DELETE | `/api/tracks/:id` | participant (own) OR admin | — | `{ ok: true }` | STAGE1 (own); admin any time |
 
-`service`/`serviceTrackId`/`coverUrl`/`embedSupported` on POST `/api/tracks` are typically populated by the client from the `/api/tracks/preview` response, but the server re-validates and may overwrite them.
+`service`/`serviceTrackId`/`coverUrl`/`embedSupported` on POST `/api/tracks` are typically populated by the client from the `/api/tracks/preview` response. The server re-validates basic field shapes (URL, enum, length) but does not re-fetch the URL to confirm consistency — track metadata is non-security-critical and the worst-case is a broken iframe render for one track on the requester's own client.
 
-`TrackPublic` shape: `{ id, title, artist, url, description, submittedBy: { id, displayName } }`. No internal fields.
+`TrackPublic` shape:
+```ts
+{
+  id: string
+  title: string
+  artist: string | null
+  url: string | null
+  description: string | null
+  service: string | null
+  serviceTrackId: string | null
+  coverUrl: string | null
+  embedSupported: boolean
+  submittedBy: { id: string; displayName: string | null }
+  createdAt: Date  // serialised as ISO string in JSON
+}
+```
+No internal fields (`sessionId`, `submittedById`).
 
 ### Votes
 
