@@ -234,7 +234,24 @@ Each session has a single `joinToken` generated at setup. The admin shares `/joi
 
 ### Join page
 
-`GET /join/{token}` and `POST /api/join/{token}` are documented as TBD until P3.5-03 lands.
+`GET /join/{token}` is a public Next.js page. It calls `findSessionByJoinToken`
+server-side; an unknown token short-circuits to a 404. For a valid token the
+page renders one of three views via `JoinForm`:
+
+1. `stage === STAGE1`: a single-field form ("Как вас зовут?") that POSTs to
+   `/api/join/{token}` with `{ displayName }`.
+2. `stage !== STAGE1`: a "registration closed" notice with a link back to `/`.
+3. After a successful registration: the freshly-issued plaintext access key,
+   a copy button, and a CTA to `/login`. The key is held in React state only
+   — a page reload returns the user to view (1).
+
+`POST /api/join/{token}` `{ displayName }` does the work. It validates the
+token, checks `stage === STAGE1`, counts existing participants against
+`maxParticipants` inside a transaction, generates a fresh `accessKey`, and
+returns `{ accessKey, participant: { id, displayName } }`. No cookie is set —
+registration ≠ login. `Participant.hasJoined` stays false until the
+participant exchanges their key via `POST /api/auth/participant`. This split
+lets the admin UI distinguish "registered, not yet entered" from "active".
 
 ## API Endpoints
 
@@ -258,6 +275,7 @@ Conventions:
 |---|---|---|---|---|
 | GET | `/api/session` | none | — | `{ ok: true, data: { exists, stage } }` |
 | POST | `/api/setup` | none (gated by `exists=false`) | `{ password, maxParticipants }` | `{ ok: true, data: { joinToken: string } }` |
+| POST | `/api/join/:token` | none | `{ displayName }` | `{ ok: true, data: { accessKey, participant: { id, displayName } } }` |
 | POST | `/api/admin/stage` | admin | `{ to: SessionStage }` | `{ ok: true, data: { stage } }` |
 | POST | `/api/admin/reset` | admin | `{ confirmTitle }` | `{ ok: true }` |
 | PATCH | `/api/admin/settings` | admin | partial settings | `{ ok: true, data: { settings } }` |
@@ -371,6 +389,9 @@ Stable across versions, used by frontend for branching UI:
 | `NOT_FOUND` | Resource doesn't exist or doesn't belong to this session |
 | `OWNERSHIP_REQUIRED` | Tried to mutate someone else's resource |
 | `SESSION_EXISTS` | Tried to run setup when a session already exists |
+| `REGISTRATION_CLOSED` | Self-registration attempted outside `STAGE1` |
+| `CAPACITY_REACHED` | Self-registration attempted with `maxParticipants` already met |
+| `INTERNAL_ERROR` | Unexpected server error (e.g. access key collision after retries) |
 
 ## Operational Notes
 

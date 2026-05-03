@@ -55,3 +55,13 @@ export async function updateSessionTitle(sessionId: string, title: string) {
     data: { title },
   })
 }
+
+/**
+ * Look up a Session by its `joinToken`. Used by the public self-registration
+ * flow (`/join/{token}` page + `POST /api/join/{token}`). The lookup hits the
+ * unique index on `joinToken`. Returns null when the token doesn't match —
+ * callers translate that to a 404 NOT_FOUND.
+ */
+export async function findSessionByJoinToken(token: string): Promise<Session | null> {
+  return prisma.session.findUnique({ where: { joinToken: token } })
+}

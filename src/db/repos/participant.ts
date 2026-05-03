@@ -5,9 +5,20 @@
  * shapes never include `accessKeyHash` — that field stays inside this module.
  */
 
-import type { Participant } from '@prisma/client'
+import type { Participant, Prisma } from '@prisma/client'
 
 import { prisma } from '@/db/client'
+
+/**
+ * Subset of PrismaClient methods used by the repo functions that may run
+ * inside an externally-managed transaction. Accepting this type lets callers
+ * pass either the top-level `prisma` client or a `tx` argument from
+ * `prisma.$transaction(async (tx) => ...)` without changing the call site.
+ */
+type PrismaTxClient = Pick<Prisma.TransactionClient, 'participant'>
+function client(tx?: PrismaTxClient) {
+  return tx ?? prisma
+}
 
 /**
  * Public, sortable view of a Participant. Excludes `accessKeyHash` and
@@ -57,8 +68,56 @@ export async function listParticipants(sessionId: string): Promise<ParticipantPu
   return rows.map(toPublic)
 }
 
-export async function countParticipants(sessionId: string): Promise<number> {
-  return prisma.participant.count({ where: { sessionId } })
+export async function countParticipants(sessionId: string, tx?: PrismaTxClient): Promise<number> {
+  return client(tx).participant.count({ where: { sessionId } })
+}
+
+/**
+ * Public shape returned by the self-registration flow. Mirrors the data the
+ * join page hands back to the new participant. We deliberately drop fields
+ * that aren't useful client-side (createdAt, hasJoined) — the client only
+ * needs `id` for follow-up calls and `displayName` for the post-registration
+ * greeting.
+ */
+export type ParticipantSelfRegisteredPublic = {
+  id: string
+  displayName: string
+}
+
+/**
+ * Self-register a participant via the public join page.
+ *
+ * Note on `hasJoined` semantics: `hasJoined` distinguishes "registered" from
+ * "logged in". This call leaves it at the default `false` — the participant
+ * has reserved a slot and received their key, but hasn't yet exchanged the
+ * key for a session cookie. `markParticipantJoined` (invoked from
+ * /api/auth/participant) flips it to `true` on first login.
+ *
+ * Throws on a UNIQUE collision on (sessionId, accessKeyHash). Caller wraps in
+ * a small retry loop with a freshly generated key — the collision probability
+ * per call is negligible (< 2^-40) but non-zero.
+ */
+export async function createParticipantSelfRegistered(
+  params: {
+    sessionId: string
+    displayName: string
+    accessKey: string
+    accessKeyHash: string
+  },
+  tx?: PrismaTxClient,
+): Promise<ParticipantSelfRegisteredPublic> {
+  const created = await client(tx).participant.create({
+    data: {
+      sessionId: params.sessionId,
+      displayName: params.displayName,
+      accessKey: params.accessKey,
+      accessKeyHash: params.accessKeyHash,
+    },
+  })
+  // displayName is non-null because we always pass a string here. The DB
+  // column is nullable for legacy reasons (admin-created participants without
+  // a name) but self-registration requires a name.
+  return { id: created.id, displayName: created.displayName ?? params.displayName }
 }
 
 /**
