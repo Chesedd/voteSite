@@ -1,0 +1,14 @@
+// Prisma schema. Models are defined in P1-01.
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection for runtime queries (Neon PgBouncer URL).
+  url       = env("DATABASE_URL")
+  // Direct connection for migrations and introspection (Neon direct URL).
+  directUrl = env("DIRECT_URL")
+}
