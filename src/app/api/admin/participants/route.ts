@@ -63,14 +63,14 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     const accessKeys: string[] = []
-    const hashes: string[] = []
+    const participants: { accessKey: string; accessKeyHash: string }[] = []
     for (let i = 0; i < count; i++) {
       const key = generateAccessKey()
       accessKeys.push(key)
-      hashes.push(hashKey(key))
+      participants.push({ accessKey: key, accessKeyHash: hashKey(key) })
     }
 
-    await createParticipants(admin.sessionId, hashes)
+    await createParticipants(admin.sessionId, participants)
     return ok({ accessKeys })
   } catch (e) {
     if (e instanceof Response) return e

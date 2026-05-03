@@ -24,6 +24,8 @@ model Session {
   title             String
   stage             SessionStage @default(STAGE1)
   adminPasswordHash String
+  joinToken         String       @unique
+  maxParticipants   Int          @default(30)
   settings          Json         @default("{}")
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
@@ -36,6 +38,7 @@ model Session {
 model Participant {
   id            String    @id @default(cuid())
   sessionId     String
+  accessKey     String
   accessKeyHash String
   displayName   String?
   hasJoined     Boolean   @default(false)

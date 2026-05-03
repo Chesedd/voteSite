@@ -200,7 +200,9 @@ describe('POST /api/admin/participants', () => {
 
     const call = mockedCreateParticipants.mock.calls[0]
     expect(call[0]).toBe('sess_1')
-    expect(call[1]).toEqual(body.data.accessKeys.map((k) => `hash(${k})`))
+    expect(call[1]).toEqual(
+      body.data.accessKeys.map((k) => ({ accessKey: k, accessKeyHash: `hash(${k})` })),
+    )
   })
 
   it('returns 400 INVALID_INPUT on malformed JSON', async () => {
