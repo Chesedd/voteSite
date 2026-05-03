@@ -1,12 +1,11 @@
 /**
  * Admin /admin/participants screen.
  *
- * Single client component that owns table state, inline rename, add/regen/delete
- * dialogs, and the one-shot "newly issued keys" view. Centralised intentionally:
- * sensitive plaintext keys live only in this component's local state (never in
- * URL, localStorage, or props passed down through the tree). Keeping all of
- * that in one place makes it easy to audit that the keys are dropped on
- * dialog close.
+ * Self-registration era: plaintext access keys are now part of every row's
+ * shape and rendered in the table (with copy buttons). The post-create /
+ * post-regenerate "issued keys" modal is kept for moment-of-rotation UX
+ * confirmation, but its previous "save now or lose it" warning is softened —
+ * keys remain visible in the table afterwards.
  */
 
 'use client'
@@ -46,6 +45,7 @@ const ADD_DEFAULT = 1
 export type ParticipantRow = {
   id: string
   displayName: string | null
+  accessKey: string
   hasJoined: boolean
   lastSeenAt: string | null
   createdAt: string
@@ -166,7 +166,7 @@ export function ParticipantsManager({ initialParticipants }: ParticipantsManager
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Участники</CardTitle>
           <Button type="button" onClick={() => setAddOpen(true)}>
-            Добавить участников
+            Создать слот
           </Button>
         </CardHeader>
         <CardContent className="p-0">
@@ -220,7 +220,7 @@ function ParticipantsTable({
   if (rows.length === 0) {
     return (
       <div className="text-muted-foreground p-6 text-center text-sm">
-        Пока нет участников. Нажмите «Добавить участников».
+        Пока нет участников. Поделитесь join-ссылкой или нажмите «Создать слот».
       </div>
     )
   }
@@ -230,6 +230,7 @@ function ParticipantsTable({
         <thead className="text-muted-foreground border-b text-left">
           <tr>
             <th className="px-4 py-2 font-medium">Имя</th>
+            <th className="px-4 py-2 font-medium">Ключ</th>
             <th className="px-4 py-2 font-medium">Статус</th>
             <th className="px-4 py-2 font-medium">Добавлен</th>
             <th className="w-12 px-4 py-2"></th>
@@ -242,11 +243,10 @@ function ParticipantsTable({
                 <NameCell participant={p} onRename={onRename} />
               </td>
               <td className="px-4 py-2 align-middle">
-                {p.hasJoined ? (
-                  <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">Вошёл</Badge>
-                ) : (
-                  <Badge variant="secondary">Не вошёл</Badge>
-                )}
+                <KeyCell accessKey={p.accessKey} />
+              </td>
+              <td className="px-4 py-2 align-middle">
+                <StatusBadge participant={p} />
               </td>
               <td className="text-muted-foreground px-4 py-2 align-middle tabular-nums">
                 {formatDate(p.createdAt)}
@@ -279,6 +279,43 @@ function ParticipantsTable({
       </table>
     </div>
   )
+}
+
+function KeyCell({ accessKey }: { accessKey: string }) {
+  async function handleCopy() {
+    const ok = await copyText(accessKey)
+    if (ok) toast.success('Ключ скопирован')
+    else toast.error('Скопируйте вручную')
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <code className="font-mono text-xs tracking-wider">{accessKey}</code>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={handleCopy}
+        aria-label="Скопировать ключ"
+        className="h-7 w-7"
+      >
+        <CopyIcon className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  )
+}
+
+function StatusBadge({ participant }: { participant: ParticipantRow }) {
+  // Three states reflect the self-registration era:
+  //   - displayName + hasJoined  → registered AND signed in at least once
+  //   - displayName + !hasJoined → self-registered, not yet exchanged key for cookie
+  //   - !displayName             → admin-created empty slot, never used
+  if (participant.displayName !== null && participant.hasJoined) {
+    return <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">Активен</Badge>
+  }
+  if (participant.displayName !== null) {
+    return <Badge className="bg-blue-600 text-white hover:bg-blue-600">Зарегистрирован</Badge>
+  }
+  return <Badge variant="outline">Слот</Badge>
 }
 
 function NameCell({
@@ -415,10 +452,12 @@ function AddParticipantsDialog({
       // We don't have new ParticipantRow objects here — the server-side
       // listing has them. Push placeholder rows so the table reflects the
       // count immediately; the router.refresh() inside onAdded will replace
-      // them with authoritative rows.
-      const placeholders: ParticipantRow[] = body.data.accessKeys.map((_, i) => ({
+      // them with authoritative rows. The accessKey is real (returned by the
+      // POST), only the synthetic id and createdAt get reconciled on refresh.
+      const placeholders: ParticipantRow[] = body.data.accessKeys.map((key, i) => ({
         id: `pending-${Date.now()}-${i}`,
         displayName: null,
+        accessKey: key,
         hasJoined: false,
         lastSeenAt: null,
         createdAt: new Date().toISOString(),
@@ -439,15 +478,15 @@ function AddParticipantsDialog({
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Добавить участников</DialogTitle>
+              <DialogTitle>Создать слот</DialogTitle>
               <DialogDescription>
-                Каждому новому участнику будет сгенерирован одноразовый ключ. Ключи показываются
-                только один раз.
+                Слот — это пустое место для участника. Слот получит ключ сразу, имя — при первом
+                входе ИЛИ когда вы его впишете.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="participants-count">Сколько добавить?</Label>
+                <Label htmlFor="participants-count">Сколько слотов?</Label>
                 <Input
                   id="participants-count"
                   type="number"
@@ -659,13 +698,14 @@ function IssuedKeysView({
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>
-          После закрытия окна ключи нельзя посмотреть снова — только сгенерировать заново.
+          Ключи также видны в таблице участников — здесь показаны для удобства.
         </DialogDescription>
       </DialogHeader>
-      <Alert variant="destructive">
-        <AlertTitle>Скопируйте сейчас</AlertTitle>
+      <Alert>
+        <AlertTitle>Скопируйте сейчас или найдёте в таблице</AlertTitle>
         <AlertDescription>
-          Сохраните ключи у себя. На сервере они хранятся только в виде хеша.
+          Ключи доступны на странице участников всегда — это окно лишь для удобства сразу после
+          создания.
         </AlertDescription>
       </Alert>
       {keys.length > 1 && (

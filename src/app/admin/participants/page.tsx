@@ -23,6 +23,7 @@ export default async function AdminParticipantsPage() {
   const initial = participants.map((p) => ({
     id: p.id,
     displayName: p.displayName,
+    accessKey: p.accessKey,
     hasJoined: p.hasJoined,
     lastSeenAt: p.lastSeenAt ? p.lastSeenAt.toISOString() : null,
     createdAt: p.createdAt.toISOString(),
