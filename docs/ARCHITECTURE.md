@@ -112,14 +112,15 @@ When a `Session` is deleted, all participants/tracks/votes cascade. When a `Part
 ```
 
 The "no session exists" state is represented by the absence of a Session row,
-not by an enum value: `POST /api/setup` creates the Session and its
-Participant rows in a single transaction, so the row is born in `STAGE1`.
+not by an enum value: `POST /api/setup` creates the Session row, so it is
+born in `STAGE1`. Participants are added later through self-registration via
+`/join/{joinToken}` (see "Self-Registration Flow").
 
 ### Allowed Transitions
 
 | From | To | Conditions | Side effects |
 |---|---|---|---|
-| (no session) | STAGE1 | `POST /api/setup` with valid input and ≥2 participants requested | Creates Session + N Participants atomically. |
+| (no session) | STAGE1 | `POST /api/setup` with valid `{ password, maxParticipants }` | Creates Session shell with `joinToken`. No participants yet. |
 | STAGE1 | STAGE2 | ≥3 tracks from ≥2 distinct authors | None |
 | STAGE2 | FINISHED | none | None |
 | STAGE2 | STAGE1 (rollback) | none | Votes preserved (frozen). UI shows warning. |
@@ -225,7 +226,15 @@ We support exactly one active `Session` row at a time. The setup screen blocks i
 
 ## Self-Registration Flow
 
-Each session has a single `joinToken` generated at setup. The admin shares `/join/{joinToken}` with participants; visitors to that URL pick a display name and receive a freshly minted access key in the response. New participant rows are created on demand up to `Session.maxParticipants`. The token is unguessable (96 bits, base64url) and is the only gate — there is no per-participant invite. Full endpoint and UI detail lands in P3.5-03.
+Each session has a single `joinToken` generated at setup. The admin shares `/join/{joinToken}` with participants; visitors to that URL pick a display name and receive a freshly minted access key in the response. New participant rows are created on demand up to `Session.maxParticipants`. The token is unguessable (96 bits, base64url) and is the only gate — there is no per-participant invite.
+
+### Setup endpoint
+
+`POST /api/setup` creates the Session shell only — no participants. Body is `{ password, maxParticipants }` (password ≥8 chars; maxParticipants integer 2..100). On success the response carries `{ joinToken }` and an admin cookie is set; the post-setup screen turns this into a shareable `/join/{joinToken}` URL using the admin's own browser origin. There is no longer a "list of N pre-generated keys" screen — participants are created on demand by the join page.
+
+### Join page
+
+`GET /join/{token}` and `POST /api/join/{token}` are documented as TBD until P3.5-03 lands.
 
 ## API Endpoints
 
@@ -248,7 +257,7 @@ Conventions:
 | Method | Path | Auth | Body | Returns |
 |---|---|---|---|---|
 | GET | `/api/session` | none | — | `{ ok: true, data: { exists, stage } }` |
-| POST | `/api/setup` | none (gated by `exists=false`) | `{ password, participantCount }` | `{ ok: true, data: { accessKeys: string[] } }` |
+| POST | `/api/setup` | none (gated by `exists=false`) | `{ password, maxParticipants }` | `{ ok: true, data: { joinToken: string } }` |
 | POST | `/api/admin/stage` | admin | `{ to: SessionStage }` | `{ ok: true, data: { stage } }` |
 | POST | `/api/admin/reset` | admin | `{ confirmTitle }` | `{ ok: true }` |
 | PATCH | `/api/admin/settings` | admin | partial settings | `{ ok: true, data: { settings } }` |

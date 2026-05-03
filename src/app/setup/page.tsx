@@ -14,8 +14,8 @@ export default async function SetupPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight">Создание голосования</h1>
         <p className="text-muted-foreground text-sm">
-          Это разовая настройка. Сохраните пароль администратора и ключи участников — без них
-          восстановить доступ нельзя.
+          Это разовая настройка. Сохраните пароль администратора — без него восстановить доступ
+          нельзя. После создания вы получите ссылку для регистрации участников.
         </p>
       </div>
       <SetupForm />
