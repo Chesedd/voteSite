@@ -28,12 +28,12 @@ Final shape lives in `prisma/schema.prisma`. This document specifies intent; if 
 ### Entities
 
 ```
-SessionStage = SETUP | STAGE1 | STAGE2 | FINISHED
+SessionStage = STAGE1 | STAGE2 | FINISHED
 
 Session
   id              String   @id @default(cuid())
   title           String
-  stage           SessionStage @default(SETUP)
+  stage           SessionStage @default(STAGE1)
   adminPasswordHash String
   settings        Json     @default("{}")
   createdAt       DateTime @default(now())
@@ -106,12 +106,9 @@ When a `Session` is deleted, all participants/tracks/votes cascade. When a `Part
                                     FINISHED
 ```
 
-The `SETUP` enum value still exists in `SessionStage` (Prisma schema default),
-but in practice no Session row ever lives in it: `POST /api/setup` creates the
-Session and its Participant rows in a single transaction, so the row is born
-in `STAGE1`. `SETUP` therefore represents "no Session row exists yet" rather
-than a stored state. We don't drop the enum value to avoid a non-trivial
-migration; treat it as a leftover, not a transition target.
+`POST /api/setup` creates the Session and its Participant rows in a single
+transaction, so a Session row is always born in `STAGE1`. There is no "empty"
+pre-stage — "no Session row exists yet" is the only state outside the diagram.
 
 ### Allowed Transitions
 
@@ -129,15 +126,12 @@ Implementation lives in `src/lib/stage.ts` as a pure `canTransition(from, to)` f
 
 ### Visibility Matrix
 
-(`SETUP` column kept for completeness even though no Session row should ever
-be in this state — see "Stage Machine" above.)
-
-| | SETUP | STAGE1 | STAGE2 | FINISHED (hidden) | FINISHED (revealed) |
-|---|---|---|---|---|---|
-| Participants see other tracks | — | ✅ | ✅ | ✅ | ✅ |
-| Participants see track authors | — | ✅ | ✅ | ✅ | ✅ |
-| Participants see vote counts | — | — | ❌ | ❌ | ✅ |
-| Admin sees everything | ✅ | ✅ | ✅ | ✅ | ✅ |
+| | STAGE1 | STAGE2 | FINISHED (hidden) | FINISHED (revealed) |
+|---|---|---|---|---|
+| Participants see other tracks | ✅ | ✅ | ✅ | ✅ |
+| Participants see track authors | ✅ | ✅ | ✅ | ✅ |
+| Participants see vote counts | — | ❌ | ❌ | ✅ |
+| Admin sees everything | ✅ | ✅ | ✅ | ✅ |
 
 `revealResults` is a `Session.settings` flag, toggled by the admin only when stage = FINISHED.
 
@@ -361,6 +355,14 @@ Stable across versions, used by frontend for branching UI:
 | `SESSION_EXISTS` | Tried to run setup when a session already exists |
 
 ## Operational Notes
+
+### Pages are force-dynamic
+
+Every page under `src/app/` reads from the database, cookies, or auth state, so
+static prerendering would fail at build time (no `DATABASE_URL`) or serve stale
+HTML to logged-in users. We treat `export const dynamic = 'force-dynamic'` as
+the default for this app — there are no static pages. New pages must add this
+line. Convention details in `/CLAUDE.md` "Conventions".
 
 ### Sandbox network restrictions for agent sessions
 
