@@ -14,7 +14,6 @@ datasource db {
 }
 
 enum SessionStage {
-  SETUP
   STAGE1
   STAGE2
   FINISHED
@@ -23,7 +22,7 @@ enum SessionStage {
 model Session {
   id                String       @id @default(cuid())
   title             String
-  stage             SessionStage @default(SETUP)
+  stage             SessionStage @default(STAGE1)
   adminPasswordHash String
   settings          Json         @default("{}")
   createdAt         DateTime     @default(now())
