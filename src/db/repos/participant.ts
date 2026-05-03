@@ -62,18 +62,20 @@ export async function countParticipants(sessionId: string): Promise<number> {
 }
 
 /**
- * Bulk-create participants with the given pre-hashed keys. Returned in the
- * same order as the input hashes so callers can pair plaintext keys with
- * persisted rows. Caller is responsible for generating + hashing the keys.
+ * Bulk-create participants with the given plaintext + hashed keys. Returned in
+ * the same order as the input so callers can pair plaintext keys with
+ * persisted rows. Caller is responsible for generating + hashing the keys; the
+ * two values are stored together and never diverge (see ARCHITECTURE.md
+ * "Data Model → Participant").
  */
 export async function createParticipants(
   sessionId: string,
-  accessKeyHashes: string[],
+  participants: { accessKey: string; accessKeyHash: string }[],
 ): Promise<ParticipantPublic[]> {
   const created = await prisma.$transaction(
-    accessKeyHashes.map((hash) =>
+    participants.map((p) =>
       prisma.participant.create({
-        data: { sessionId, accessKeyHash: hash },
+        data: { sessionId, accessKey: p.accessKey, accessKeyHash: p.accessKeyHash },
       }),
     ),
   )
@@ -100,17 +102,20 @@ export async function renameParticipant(
 }
 
 /**
- * Replace a participant's accessKeyHash. Caller computes the new hash from a
- * freshly generated plaintext key. Returns null if no row matches.
+ * Replace a participant's accessKey + accessKeyHash. Caller generates the new
+ * plaintext key and computes its hash; both are written together so the
+ * plaintext shown to admin always matches the hash used at login. Returns
+ * null if no row matches.
  */
 export async function updateParticipantKeyHash(
   sessionId: string,
   participantId: string,
+  accessKey: string,
   accessKeyHash: string,
 ): Promise<ParticipantPublic | null> {
   const result = await prisma.participant.updateMany({
     where: { id: participantId, sessionId },
-    data: { accessKeyHash },
+    data: { accessKey, accessKeyHash },
   })
   if (result.count === 0) return null
   const row = await prisma.participant.findUnique({ where: { id: participantId } })

@@ -98,7 +98,7 @@ describe('POST /api/admin/participants/:id/regenerate', () => {
     expect(res.status).toBe(200)
     const body = (await res.json()) as ApiSuccess<{ accessKey: string }>
     expect(body.data.accessKey).toBe('NEWKEY12')
-    expect(mockedUpdate).toHaveBeenCalledWith('sess_1', 'p_1', 'hash(NEWKEY12)')
+    expect(mockedUpdate).toHaveBeenCalledWith('sess_1', 'p_1', 'NEWKEY12', 'hash(NEWKEY12)')
   })
 
   it('returns 404 NOT_FOUND when the participant does not exist', async () => {

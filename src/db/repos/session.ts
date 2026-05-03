@@ -34,20 +34,23 @@ export async function getActiveSession() {
 export async function createSessionWithParticipants(params: {
   title: string
   adminPasswordHash: string
-  participantKeyHashes: string[]
+  joinToken: string
+  participants: { accessKey: string; accessKeyHash: string }[]
 }) {
   return prisma.$transaction(async (tx) => {
     const session = await tx.session.create({
       data: {
         title: params.title,
         adminPasswordHash: params.adminPasswordHash,
+        joinToken: params.joinToken,
         stage: 'STAGE1',
       },
     })
     await tx.participant.createMany({
-      data: params.participantKeyHashes.map((hash) => ({
+      data: params.participants.map((p) => ({
         sessionId: session.id,
-        accessKeyHash: hash,
+        accessKey: p.accessKey,
+        accessKeyHash: p.accessKeyHash,
       })),
     })
     return session

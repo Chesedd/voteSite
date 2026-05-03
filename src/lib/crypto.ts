@@ -48,3 +48,11 @@ export function generateAccessKey(): string {
   }
   return key
 }
+
+/**
+ * URL-safe random token used for join links.
+ * 16 chars from base64url alphabet, ~96 bits entropy.
+ */
+export function generateJoinToken(): string {
+  return randomBytes(12).toString('base64url')
+}

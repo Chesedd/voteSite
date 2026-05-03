@@ -28,7 +28,7 @@ import { z } from 'zod'
 import { err, ok } from '@/lib/api/responses'
 import { setSessionCookie } from '@/lib/auth/cookies'
 import { signToken } from '@/lib/auth/jwt'
-import { generateAccessKey, hashKey, hashPassword } from '@/lib/crypto'
+import { generateAccessKey, generateJoinToken, hashKey, hashPassword } from '@/lib/crypto'
 import { createSessionWithParticipants, getActiveSession } from '@/db/repos/session'
 
 const MIN_PASSWORD_LENGTH = 8
@@ -67,17 +67,18 @@ export async function POST(req: Request): Promise<Response> {
 
   const adminPasswordHash = await hashPassword(password)
   const accessKeys: string[] = []
-  const participantKeyHashes: string[] = []
+  const participants: { accessKey: string; accessKeyHash: string }[] = []
   for (let i = 0; i < participantCount; i++) {
     const key = generateAccessKey()
     accessKeys.push(key)
-    participantKeyHashes.push(hashKey(key))
+    participants.push({ accessKey: key, accessKeyHash: hashKey(key) })
   }
 
   const session = await createSessionWithParticipants({
     title: DEFAULT_TITLE,
     adminPasswordHash,
-    participantKeyHashes,
+    joinToken: generateJoinToken(),
+    participants,
   })
 
   const token = await signToken({ kind: 'admin', sessionId: session.id })

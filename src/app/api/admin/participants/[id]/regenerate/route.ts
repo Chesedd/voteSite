@@ -30,7 +30,7 @@ export async function POST(_req: Request, ctx: RouteContext): Promise<Response> 
     const accessKey = generateAccessKey()
     const accessKeyHash = hashKey(accessKey)
 
-    const updated = await updateParticipantKeyHash(admin.sessionId, id, accessKeyHash)
+    const updated = await updateParticipantKeyHash(admin.sessionId, id, accessKey, accessKeyHash)
     if (!updated) {
       return err('NOT_FOUND', 'Участник не найден', 404)
     }

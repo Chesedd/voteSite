@@ -35,6 +35,8 @@ Session
   title           String
   stage           SessionStage @default(STAGE1)
   adminPasswordHash String
+  joinToken       String   @unique // 16-char base64url, used in /join/{token}
+  maxParticipants Int      @default(30) // 2..100 enforced at API layer
   settings        Json     @default("{}")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -42,7 +44,8 @@ Session
 Participant
   id              String   @id @default(cuid())
   sessionId       String
-  accessKeyHash   String   // SHA-256 of plaintext key
+  accessKey       String   // plaintext, shown to admin in /admin/participants
+  accessKeyHash   String   // SHA-256 of plaintext key, used for login lookup
   displayName     String?
   hasJoined       Boolean  @default(false)
   lastSeenAt      DateTime?
@@ -75,6 +78,8 @@ Vote
 ```
 
 > Note: service/serviceTrackId/coverUrl/embedSupported are added by a later migration in Phase 4 (see ROADMAP P4-01b). Phase 1 schema does not include them.
+
+> `Participant.accessKey` is plaintext and exposed to the admin in `/admin/participants`. `accessKeyHash` remains the lookup key for login. The two are written together at every mutation (create, regenerate) and never diverge. Storing the plaintext is acceptable here because access keys are short-lived per-session credentials, not long-term secrets — same threat model as the `Session.joinToken`.
 
 ### Settings (JSONB on Session)
 
@@ -217,6 +222,10 @@ maxAge: 24 * 60 * 60
 ### Single active session
 
 We support exactly one active `Session` row at a time. The setup screen blocks if one exists. `GET /api/session` (no auth) returns `{ exists: boolean, stage: SessionStage }` for the home page router to decide between `/setup`, `/login`, etc.
+
+## Self-Registration Flow
+
+Each session has a single `joinToken` generated at setup. The admin shares `/join/{joinToken}` with participants; visitors to that URL pick a display name and receive a freshly minted access key in the response. New participant rows are created on demand up to `Session.maxParticipants`. The token is unguessable (96 bits, base64url) and is the only gate — there is no per-participant invite. Full endpoint and UI detail lands in P3.5-03.
 
 ## API Endpoints
 

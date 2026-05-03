@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { generateAccessKey, hashKey, hashPassword, verifyPassword } from './crypto'
+import {
+  generateAccessKey,
+  generateJoinToken,
+  hashKey,
+  hashPassword,
+  verifyPassword,
+} from './crypto'
 
 const ACCESS_KEY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
@@ -99,5 +105,29 @@ describe('generateAccessKey', () => {
     for (const ch of ACCESS_KEY_ALPHABET) {
       expect(seen.has(ch)).toBe(true)
     }
+  })
+})
+
+describe('generateJoinToken', () => {
+  it('returns a string of exactly 16 characters (12 bytes base64url-encoded)', () => {
+    expect(generateJoinToken()).toHaveLength(16)
+  })
+
+  it('every character is in the base64url alphabet (A-Z a-z 0-9 - _)', () => {
+    for (let i = 0; i < 200; i++) {
+      expect(generateJoinToken()).toMatch(/^[A-Za-z0-9_-]{16}$/)
+    }
+  })
+
+  it('different calls yield different tokens', () => {
+    expect(generateJoinToken()).not.toBe(generateJoinToken())
+  })
+
+  it('1000 generated tokens have no duplicates', () => {
+    const seen = new Set<string>()
+    for (let i = 0; i < 1000; i++) {
+      seen.add(generateJoinToken())
+    }
+    expect(seen.size).toBe(1000)
   })
 })

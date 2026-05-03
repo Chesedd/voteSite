@@ -1,14 +1,7 @@
 import { PrismaClient, SessionStage } from '@prisma/client'
-import { createHash } from 'node:crypto'
+import { generateAccessKey, generateJoinToken, hashKey } from '@/lib/crypto'
 
 const prisma = new PrismaClient()
-
-// SHA-256 hex of plaintext access key. Mirrors the production hashing in
-// docs/ARCHITECTURE.md (Hashing). The dedicated helper lands in P2-01; this
-// inline call keeps the seed independent of unmerged tickets.
-function hashKey(plaintext: string): string {
-  return createHash('sha256').update(plaintext).digest('hex')
-}
 
 // TODO(P2-01): replace with a real bcrypt hash of "admin" once src/lib/crypto.ts
 // exists. Bcrypt is not a dependency yet — pulling it in here would expand this
@@ -16,15 +9,9 @@ function hashKey(plaintext: string): string {
 // admin login endpoint that actually verifies the hash arrives in P2-04.
 const PLACEHOLDER_ADMIN_HASH = '$2b$10$placeholderplaceholderplaceholderplaceholderplaceholderxx'
 
-const PARTICIPANTS = [
-  { displayName: 'Алиса', accessKey: 'TESTKEY1' },
-  { displayName: 'Боб', accessKey: 'TESTKEY2' },
-  { displayName: 'Клара', accessKey: 'TESTKEY3' },
-  { displayName: 'Денис', accessKey: 'TESTKEY4' },
-  { displayName: 'Ева', accessKey: 'TESTKEY5' },
-] as const
+const PARTICIPANT_NAMES = ['Алиса', 'Боб', 'Клара', 'Денис', 'Ева'] as const
 
-// submitterIdx points into PARTICIPANTS. Distribution: Алиса 3, Боб 2, Клара 1.
+// submitterIdx points into PARTICIPANT_NAMES. Distribution: Алиса 3, Боб 2, Клара 1.
 const TRACKS = [
   { submitterIdx: 0, title: 'Город спит', artist: 'Кино' },
   { submitterIdx: 0, title: 'Прогулки по воде', artist: 'Наутилус Помпилиус' },
@@ -43,6 +30,12 @@ const BALLOTS: { participantIdx: number; ranks: [number, number, number] }[] = [
 ]
 
 async function main() {
+  const participantSeed = PARTICIPANT_NAMES.map((displayName) => ({
+    displayName,
+    accessKey: generateAccessKey(),
+  }))
+  const joinToken = generateJoinToken()
+
   await prisma.$transaction(async (tx) => {
     // Explicit deletion in dependency order (Vote → Track → Participant → Session).
     // Schema cascades from Session would be enough today, but explicit deletes
@@ -57,15 +50,17 @@ async function main() {
         title: 'Тестовое голосование',
         stage: SessionStage.STAGE2,
         adminPasswordHash: PLACEHOLDER_ADMIN_HASH,
+        joinToken,
       },
     })
 
     const participants = await Promise.all(
-      PARTICIPANTS.map((p) =>
+      participantSeed.map((p) =>
         tx.participant.create({
           data: {
             sessionId: session.id,
             displayName: p.displayName,
+            accessKey: p.accessKey,
             accessKeyHash: hashKey(p.accessKey),
             hasJoined: true,
           },
@@ -102,9 +97,10 @@ async function main() {
     }
   })
 
-  const longestName = Math.max(...PARTICIPANTS.map((p) => p.displayName.length))
-  console.log('[seed] Test participant access keys:')
-  for (const p of PARTICIPANTS) {
+  const longestName = Math.max(...participantSeed.map((p) => p.displayName.length))
+  console.log(`[seed] Join link: /join/${joinToken}`)
+  console.log('[seed] Test access keys:')
+  for (const p of participantSeed) {
     console.log(`  ${p.displayName.padEnd(longestName, ' ')}  ${p.accessKey}`)
   }
 }

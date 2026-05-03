@@ -11,17 +11,19 @@ vi.mock('@/lib/crypto', () => ({
   hashPassword: vi.fn(),
   hashKey: vi.fn(),
   generateAccessKey: vi.fn(),
+  generateJoinToken: vi.fn(),
 }))
 
 import { POST } from './route'
 import { createSessionWithParticipants, getActiveSession } from '@/db/repos/session'
-import { generateAccessKey, hashKey, hashPassword } from '@/lib/crypto'
+import { generateAccessKey, generateJoinToken, hashKey, hashPassword } from '@/lib/crypto'
 
 const mockedGetActiveSession = vi.mocked(getActiveSession)
 const mockedCreateSession = vi.mocked(createSessionWithParticipants)
 const mockedHashPassword = vi.mocked(hashPassword)
 const mockedHashKey = vi.mocked(hashKey)
 const mockedGenerateAccessKey = vi.mocked(generateAccessKey)
+const mockedGenerateJoinToken = vi.mocked(generateJoinToken)
 
 const TEST_SECRET = 'a'.repeat(48)
 const ACCESS_KEY_ALPHABET = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/
@@ -35,6 +37,8 @@ function fakeSession(overrides: Partial<SessionRow> = {}): SessionRow {
     title: 'Голосование',
     stage: 'STAGE1',
     adminPasswordHash: 'hashed:strongpass',
+    joinToken: 'JOINTOKEN1234567',
+    maxParticipants: 30,
     settings: {},
     createdAt: now,
     updatedAt: now,
@@ -58,6 +62,7 @@ beforeEach(() => {
   mockedHashPassword.mockReset()
   mockedHashKey.mockReset()
   mockedGenerateAccessKey.mockReset()
+  mockedGenerateJoinToken.mockReset()
 
   // Sensible defaults for happy-path-shaped tests; individual tests can
   // override these as needed.
@@ -72,6 +77,7 @@ beforeEach(() => {
     const c = ACCESS_KEY_ALPHABET.test(seed) ? seed : 'ABCDEFGH'
     return `${c.slice(0, 7)}${'23456789'[counter % 8]}`
   })
+  mockedGenerateJoinToken.mockReturnValue('JOINTOKEN1234567')
   mockedCreateSession.mockResolvedValue(fakeSession())
 })
 
@@ -160,10 +166,15 @@ describe('POST /api/setup', () => {
     const call = mockedCreateSession.mock.calls[0][0]
     expect(call.title).toBe('Голосование')
     expect(call.adminPasswordHash).toBe('hashed:strongpass')
-    expect(call.participantKeyHashes).toHaveLength(3)
-    // Each persisted hash corresponds to a generated plaintext key, in order.
+    expect(call.joinToken).toBe('JOINTOKEN1234567')
+    expect(call.participants).toHaveLength(3)
+    // Each persisted hash corresponds to a generated plaintext key, in order;
+    // plaintext + hash are written together so the admin display matches the
+    // login lookup.
     const generated = mockedGenerateAccessKey.mock.results.map((r) => r.value as string)
-    expect(call.participantKeyHashes).toEqual(generated.map((k) => `hash(${k})`))
+    expect(call.participants).toEqual(
+      generated.map((k) => ({ accessKey: k, accessKeyHash: `hash(${k})` })),
+    )
   })
 
   it('sets a session_token cookie carrying an admin JWT for the new session', async () => {

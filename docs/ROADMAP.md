@@ -399,6 +399,90 @@ setup → stage1 → stage2 → finished
 
 ---
 
+### Phase 3.5 — Self-registration refactor
+
+Цель: убрать жёсткую генерацию N ключей при setup-е и перейти на schema "админ
+делится join-ссылкой → участники регистрируются сами". Старые эндпоинты
+(`/api/setup`, `/api/auth/admin`, `/api/auth/participant`,
+`/api/admin/participants/*`) продолжают работать без изменений до P3.5-02 — это
+позволяет дробить миграцию на маленькие PR-ы.
+
+> Тикет P3-01 в части «экран показа сгенерированных ключей сразу после setup»
+> частично перестаёт быть актуальным — admin будет видеть ключи в
+> `/admin/participants` (источник истины — `Participant.accessKey`). Это
+> доделывается в P3.5-02.
+
+#### TICKET-P3.5-01 🟡 — Schema migration for self-registration
+
+**Scope**: `prisma/schema.prisma`, `prisma/migrations/`, `src/lib/crypto.ts`, `src/lib/crypto.test.ts`, `prisma/seed.ts`, `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`
+
+**Deliverable**: schema-only изменение, существующие эндпоинты не трогаем
+
+**Acceptance**:
+- `Session.joinToken` (String, unique, NOT NULL) и `Session.maxParticipants` (Int, default 30) добавлены
+- `Participant.accessKey` (String, NOT NULL) добавлен — plaintext ключ, источник истины для отображения админу
+- `src/lib/crypto.ts` экспортирует `generateJoinToken()` (16 chars base64url, ~96 bit entropy)
+- Юнит-тесты на `generateJoinToken` (длина, алфавит, отсутствие коллизий на 1000 вызовов)
+- `prisma/seed.ts` заполняет новые поля; вывод включает `[seed] Join link: /join/{token}` и таблицу ключей
+- `docs/ARCHITECTURE.md` обновлён: новые поля в Data Model + новая секция «Self-Registration Flow» (5 строк)
+- Существующие 152 теста проходят
+
+**Depends on**: P1-01, P2-01
+
+**Implementation notes**: безопасный порядок миграции на старой dev-БД — `pnpm db:reset` → правка `schema.prisma` → `pnpm db:migrate --name self_registration` → правка seed → `pnpm db:seed`. Прод-данных нет, поэтому нет необходимости в backfill-стратегии для NOT NULL колонок.
+
+---
+
+#### TICKET-P3.5-02 ⬜ — Admin participants UI: show plaintext keys + manual add
+
+**Scope**: `src/app/admin/participants/page.tsx`, `src/app/api/admin/participants/route.ts`, `src/app/api/admin/participants/[id]/route.ts`, `src/app/api/admin/participants/[id]/regenerate/route.ts`
+
+**Deliverable**: админ всегда видит plaintext-ключ участника; ручное добавление участника возвращает plaintext-ключ; ограничение `maxParticipants` соблюдается
+
+**Acceptance**:
+- `GET /api/admin/participants` возвращает `accessKey` (plaintext) в каждом элементе
+- `POST /api/admin/participants` (ручное добавление одного участника или нескольких) проверяет лимит `maxParticipants` (HTTP 400 с кодом `LIMIT_EXCEEDED` при превышении)
+- `POST /api/admin/participants/:id/regenerate` обновляет и `accessKey`, и `accessKeyHash` атомарно
+- Страница админа показывает ключ в копируемой ячейке таблицы (а не только сразу после генерации)
+- P3-01 acceptance «экран сразу после setup-а с ключами» можно убрать — UI всегда доступен в `/admin/participants`
+
+**Depends on**: P3.5-01
+
+---
+
+#### TICKET-P3.5-03 ⬜ — Join page and self-registration endpoint
+
+**Scope**: `src/app/join/[token]/page.tsx`, `src/app/api/join/[token]/route.ts`
+
+**Deliverable**: участник, открывший `/join/{token}`, может ввести имя и получить access key (хранится в admin-таблице, ставится cookie)
+
+**Acceptance**:
+- `GET /join/{token}` рендерит форму с полем «Ваше имя» (если токен валиден и текущее число участников < `maxParticipants`)
+- `POST /api/join/{token}` `{ displayName }` создаёт `Participant`, генерирует `accessKey`, ставит participant cookie, возвращает `{ ok: true, data: { accessKey } }`
+- При истёкшем лимите — 400 `LIMIT_EXCEEDED`
+- При неизвестном токене — 404 `NOT_FOUND`
+- `Session.maxParticipants` валидируется в API при апдейте: 2..100
+
+**Depends on**: P3.5-02
+
+---
+
+#### TICKET-P3.5-04 ⬜ — Setup screen and `/api/setup` rewrite
+
+**Scope**: `src/app/setup/page.tsx`, `src/app/api/setup/route.ts`
+
+**Deliverable**: setup форма больше не запрашивает `participantCount`; вместо списка ключей админу показывается join-ссылка и `maxParticipants`
+
+**Acceptance**:
+- Форма setup-а: пароль, повтор, `maxParticipants` (2..100, default 30)
+- POST `/api/setup` создаёт `Session` с `joinToken` и `maxParticipants`, ставит admin cookie, возвращает join URL
+- После setup-а — экран «Ваша join-ссылка: /join/{token}» с копированием
+- Старая ветка с генерацией N ключей удалена из endpoint-а и UI
+
+**Depends on**: P3.5-03
+
+---
+
 ### Phase 4 — Stage 1 (submissions)
 
 Цель: участники могут добавить до 3 треков, видеть пул.
