@@ -142,4 +142,8 @@ REGISTRY_URL=https://raw.githubusercontent.com/shadcn-ui/ui/main/apps/v4/public/
 - Prisma 6.x (not 7 — Prisma 7 moved `url`/`directUrl` to `prisma.config.ts`)
 - Tailwind v4 (CSS-based config — there is no `tailwind.config.js`)
 
+**Yandex.Music iframe is geo-restricted (RU only).** When developing in GitHub Codespace (US-based VM), Yandex iframe URLs render "Кажется, мы не попали в ноты" — Yandex blocks playback from non-RU IPs. The same iframe URL works correctly when accessed from a Russian IP (home browser of the developer or production users). Do NOT treat this as a bug — code generating Yandex iframe URLs has been verified correct (path-based format, album-id support per PR #38). To verify Yandex embed logic during development, paste the iframe `src` into a browser on a residential RU IP, NOT in Codespace.
+
+Spotify and YouTube embeds are not geo-restricted.
+
 **If a domain is blocked**: surface it in the PR description rather than silently working around it. Workarounds the orchestrator does not know about become invisible technical debt.
