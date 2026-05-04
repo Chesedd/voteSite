@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
 
 import { AdminHomeContent } from '@/components/admin/admin-home-content'
-import { getAdminOverview } from '@/db/repos/admin'
 import { getActiveSession } from '@/db/repos/session'
+import { getStageStats } from '@/db/repos/track'
 import { requireAdmin } from '@/lib/auth/guards'
 
 // Reads cookie + DB on every request. Static prerender is impossible.
@@ -20,6 +20,6 @@ export default async function AdminHomePage() {
   const session = await getActiveSession()
   if (!session) redirect('/setup')
 
-  const overview = await getAdminOverview(session.id)
-  return <AdminHomeContent session={session} overview={overview} />
+  const stats = await getStageStats(session.id)
+  return <AdminHomeContent session={session} stats={stats} />
 }
