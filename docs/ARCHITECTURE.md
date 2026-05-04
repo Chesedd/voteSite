@@ -346,11 +346,24 @@ No internal fields (`sessionId`, `submittedById`).
 
 | Method | Path | Auth | Body | Returns | Stage gate |
 |---|---|---|---|---|---|
-| GET | `/api/votes/me` | participant | — | `{ ok: true, data: { rank: trackId \| null }[3] }` | STAGE2 |
-| PUT | `/api/votes` | participant | `{ trackId, rank: 1\|2\|3 }` | `{ ok: true, data: VoteState }` | STAGE2 |
-| DELETE | `/api/votes/:rank` | participant | — | `{ ok: true }` | STAGE2 |
+| GET | `/api/votes/me` | participant | — | `{ ok: true, data: VotesByRank }` | STAGE2 |
+| PUT | `/api/votes` | participant | `{ trackId, rank: 1\|2\|3 }` | `{ ok: true, data: VotesByRank }` | STAGE2 |
+| DELETE | `/api/votes/:rank` | participant | — | `{ ok: true, data: VotesByRank }` | STAGE2 |
 
-PUT semantics (transactional): if participant already has a vote at this rank → replace it. If this trackId is already at another rank for this participant → that other rank is cleared (track moves). Never two votes for the same track.
+`VotesByRank` shape:
+```ts
+{
+  1: { trackId: string } | null
+  2: { trackId: string } | null
+  3: { trackId: string } | null
+}
+```
+
+Numeric keys map 1:1 to ranks for client iteration. Each slot is either `{ trackId }` or `null` (empty). Vote counts/totals stay admin-only — see "Visibility Matrix"; this shape exposes only the requesting participant's own placements.
+
+PUT semantics (transactional): if participant already has a vote at this rank → replace it. If this trackId is already at another rank for this participant → that other rank is cleared (track moves). Never two votes for the same track. The full `VotesByRank` is re-fetched after the transaction so the client sees the authoritative state, including any rank that was cleared as a side effect of the move.
+
+DELETE is idempotent — calling it for a rank with no current vote returns the unchanged state with HTTP 200.
 
 ### Results (admin)
 
