@@ -1,8 +1,8 @@
 /**
  * /admin home overview: current stage, counts, and quick actions.
  *
- * Server-rendered apart from the rename dialog, which has to be a client
- * island because it owns local form state and triggers a client-side fetch.
+ * Server-rendered apart from interactive islands (rename dialog, stage
+ * controls), which own client-side state for their fetches.
  */
 
 import type { Session } from '@prisma/client'
@@ -10,16 +10,16 @@ import type { Session } from '@prisma/client'
 import { JoinLinkCard } from '@/components/admin/join-link-card'
 import { RenameSessionDialog } from '@/components/admin/rename-session-dialog'
 import { StageBadge } from '@/components/admin/stage-badge'
-import { Button } from '@/components/ui/button'
+import { StageControls } from '@/components/admin/stage-controls'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { AdminOverview } from '@/db/repos/admin'
+import type { StageStats } from '@/lib/stage-transitions'
 
 type AdminHomeContentProps = {
   session: Session
-  overview: AdminOverview
+  stats: StageStats
 }
 
-export function AdminHomeContent({ session, overview }: AdminHomeContentProps) {
+export function AdminHomeContent({ session, stats }: AdminHomeContentProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <Card>
@@ -36,9 +36,9 @@ export function AdminHomeContent({ session, overview }: AdminHomeContentProps) {
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-3 gap-4 text-center">
-            <Stat label="Участников" value={overview.participants} />
-            <Stat label="Треков" value={overview.tracks} />
-            <Stat label="Голосов" value={overview.votes} />
+            <Stat label="Участников" value={stats.participantCount} />
+            <Stat label="Треков" value={stats.trackCount} />
+            <Stat label="Голосов" value={stats.voteCount} />
           </dl>
         </CardContent>
       </Card>
@@ -46,7 +46,7 @@ export function AdminHomeContent({ session, overview }: AdminHomeContentProps) {
         <JoinLinkCard
           joinToken={session.joinToken}
           maxParticipants={session.maxParticipants}
-          registered={overview.participants}
+          registered={stats.participantCount}
           stage={session.stage}
         />
       </div>
@@ -54,18 +54,24 @@ export function AdminHomeContent({ session, overview }: AdminHomeContentProps) {
         <CardHeader>
           <CardTitle>Действия</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <RenameSessionDialog currentTitle={session.title} />
-          <Button
-            type="button"
-            variant="outline"
-            disabled
-            title="Управление этапами появится позже"
-          >
-            Перейти к следующему этапу
-          </Button>
+        <CardContent className="flex flex-col gap-6">
+          <Section label="Информация">
+            <RenameSessionDialog currentTitle={session.title} />
+          </Section>
+          <Section label="Этап">
+            <StageControls currentStage={session.stage} stats={stats} />
+          </Section>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h3 className="text-muted-foreground text-xs tracking-wide uppercase">{label}</h3>
+      {children}
     </div>
   )
 }
