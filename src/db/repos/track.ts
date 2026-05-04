@@ -147,3 +147,34 @@ export async function deleteTrack(id: string, ownerId: string | null): Promise<b
 export async function countTracksByParticipant(participantId: string): Promise<number> {
   return prisma.track.count({ where: { submittedById: participantId } })
 }
+
+/**
+ * Aggregated stats for a session, used by the stage-transition endpoint to
+ * verify prerequisites (`@/lib/stage-transitions.checkTransitionRequirements`).
+ *
+ * Prisma has no native distinct-count, so `distinctSubmittersCount` is derived
+ * from a `findMany({ distinct })` length. All four queries run in parallel.
+ */
+export async function getStageStats(sessionId: string): Promise<{
+  participantCount: number
+  trackCount: number
+  distinctSubmittersCount: number
+  voteCount: number
+}> {
+  const [participantCount, trackCount, distinctSubmitters, voteCount] = await Promise.all([
+    prisma.participant.count({ where: { sessionId } }),
+    prisma.track.count({ where: { sessionId } }),
+    prisma.track.findMany({
+      where: { sessionId },
+      select: { submittedById: true },
+      distinct: ['submittedById'],
+    }),
+    prisma.vote.count({ where: { sessionId } }),
+  ])
+  return {
+    participantCount,
+    trackCount,
+    distinctSubmittersCount: distinctSubmitters.length,
+    voteCount,
+  }
+}
