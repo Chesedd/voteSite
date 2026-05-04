@@ -149,11 +149,6 @@ export function TrackCard({
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <Badge variant="outline">{serviceLabel(track.service)}</Badge>
-            {track.embedSupported ? (
-              <span className="text-emerald-700 dark:text-emerald-400">✓ С плеером</span>
-            ) : (
-              <span className="text-muted-foreground">ℹ️ Без плеера</span>
-            )}
             {isOwn ? (
               <Badge variant="secondary" className="ml-auto">
                 Ваш
