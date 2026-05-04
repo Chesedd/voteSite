@@ -29,13 +29,19 @@
 
 'use client'
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { TrackEmbed } from '@/components/participant/track-embed'
 import { cn } from '@/lib/utils'
 import type { TrackPublic } from '@/db/repos/track'
+
+// Approx 3 lines of typical description text. Above this we render an
+// expand/collapse toggle; below it the line-clamp would never trigger so a
+// button would be useless. Heuristic-only — avoids DOM measurement and the
+// hydration mismatches that come with it.
+const DESCRIPTION_CLAMP_THRESHOLD = 180
 
 const SERVICE_LABELS: Record<string, string> = {
   yandex: 'Яндекс.Музыка',
@@ -59,6 +65,10 @@ export type TrackCardProps = {
 }
 
 export function TrackCard({ track, isOwn = false, bottomActions }: TrackCardProps) {
+  const [expanded, setExpanded] = useState(false)
+  const canExpand =
+    track.description !== null && track.description.length > DESCRIPTION_CLAMP_THRESHOLD
+
   return (
     <Card
       id={`track-${track.id}`}
@@ -101,9 +111,26 @@ export function TrackCard({ track, isOwn = false, bottomActions }: TrackCardProp
             ) : null}
           </div>
           {track.description ? (
-            <p className="text-foreground/90 mt-1 line-clamp-3 text-sm whitespace-pre-wrap">
-              {track.description}
-            </p>
+            <div className="mt-1">
+              <p
+                className={cn(
+                  'text-foreground/90 text-sm whitespace-pre-wrap',
+                  !expanded && 'line-clamp-3',
+                )}
+              >
+                {track.description}
+              </p>
+              {canExpand ? (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((v) => !v)}
+                  className="text-muted-foreground hover:text-foreground mt-1 text-sm underline-offset-2 hover:underline"
+                  aria-expanded={expanded}
+                >
+                  {expanded ? 'Свернуть' : 'Развернуть'}
+                </button>
+              ) : null}
+            </div>
           ) : null}
           <div className="mt-2">
             <TrackEmbed
