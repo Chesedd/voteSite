@@ -8,6 +8,7 @@ describe('detectService — Yandex Music', () => {
     expect(result).toEqual({
       service: 'yandex',
       serviceTrackId: '456',
+      serviceAlbumId: '123',
       embedUrl: 'https://music.yandex.ru/iframe/#track/456/123',
       embedSupported: true,
     })
@@ -18,9 +19,24 @@ describe('detectService — Yandex Music', () => {
     expect(result).toEqual({
       service: 'yandex',
       serviceTrackId: '789',
+      serviceAlbumId: null,
       embedUrl: 'https://music.yandex.ru/iframe/#track/789',
       embedSupported: true,
     })
+  })
+
+  it('returns both ids and composite embed url for /album/X/track/Y', () => {
+    // Yandex's iframe widget renders "track not found" when only the track
+    // id is supplied — both ids must round-trip from URL → detection →
+    // storage → embed. Guard explicitly so a future refactor that drops
+    // the album id from the iframe URL gets caught.
+    const result = detectService('https://music.yandex.ru/album/9876/track/5432')
+    expect(result?.service).toBe('yandex')
+    expect(result?.serviceTrackId).toBe('5432')
+    if (result?.service === 'yandex') {
+      expect(result.serviceAlbumId).toBe('9876')
+    }
+    expect(result?.embedUrl).toBe('https://music.yandex.ru/iframe/#track/5432/9876')
   })
 
   it('parses .com TLD the same way as .ru', () => {
@@ -41,6 +57,7 @@ describe('detectService — Yandex Music', () => {
     expect(result).toEqual({
       service: 'other',
       serviceTrackId: null,
+      serviceAlbumId: null,
       embedUrl: null,
       embedSupported: false,
     })
@@ -53,6 +70,7 @@ describe('detectService — Spotify', () => {
     expect(result).toEqual({
       service: 'spotify',
       serviceTrackId: '3n3Ppam7vgaVa1iaRUc9Lp',
+      serviceAlbumId: null,
       embedUrl: 'https://open.spotify.com/embed/track/3n3Ppam7vgaVa1iaRUc9Lp',
       embedSupported: true,
     })
@@ -71,6 +89,7 @@ describe('detectService — Spotify', () => {
     expect(result).toEqual({
       service: 'spotify',
       serviceTrackId: 'abcdef1234567890ABCDEF',
+      serviceAlbumId: null,
       embedUrl: 'https://open.spotify.com/embed/track/abcdef1234567890ABCDEF',
       embedSupported: true,
     })
@@ -89,6 +108,7 @@ describe('detectService — YouTube', () => {
     expect(result).toEqual({
       service: 'youtube',
       serviceTrackId: 'dQw4w9WgXcQ',
+      serviceAlbumId: null,
       embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
       embedSupported: true,
     })
@@ -105,6 +125,7 @@ describe('detectService — YouTube', () => {
     expect(result).toEqual({
       service: 'youtube',
       serviceTrackId: 'dQw4w9WgXcQ',
+      serviceAlbumId: null,
       embedUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
       embedSupported: true,
     })
@@ -133,6 +154,7 @@ describe('detectService — non-embeddable services', () => {
     expect(result).toEqual({
       service: 'vk',
       serviceTrackId: null,
+      serviceAlbumId: null,
       embedUrl: null,
       embedSupported: false,
     })
@@ -150,6 +172,7 @@ describe('detectService — non-embeddable services', () => {
     expect(result).toEqual({
       service: 'apple',
       serviceTrackId: null,
+      serviceAlbumId: null,
       embedUrl: null,
       embedSupported: false,
     })
@@ -162,6 +185,7 @@ describe('detectService — non-embeddable services', () => {
     expect(result).toEqual({
       service: 'soundcloud',
       serviceTrackId: null,
+      serviceAlbumId: null,
       embedUrl: null,
       embedSupported: false,
     })
@@ -179,6 +203,7 @@ describe('detectService — other / fallback', () => {
     expect(result).toEqual({
       service: 'other',
       serviceTrackId: null,
+      serviceAlbumId: null,
       embedUrl: null,
       embedSupported: false,
     })

@@ -66,6 +66,7 @@ function fakeTrack(overrides: Partial<TrackPublic> = {}): TrackPublic {
     description: null,
     service: null,
     serviceTrackId: null,
+    serviceAlbumId: null,
     coverUrl: null,
     embedSupported: false,
     submittedBy: { id: 'p_1', displayName: 'Аня' },

@@ -34,16 +34,29 @@
 export type EmbedableService = 'yandex' | 'spotify' | 'youtube'
 export type NonEmbedableService = 'vk' | 'apple' | 'soundcloud' | 'other'
 
+// `serviceAlbumId` only carries data for Yandex tracks parsed from
+// /album/{albumId}/track/{trackId} URLs — Yandex's iframe widget needs both
+// IDs to render the track. Spotify and YouTube don't use it but keep the
+// field on every variant so consumers can read it without narrowing.
 export type ServiceMatch =
   | {
-      service: EmbedableService
+      service: 'yandex'
       serviceTrackId: string
+      serviceAlbumId: string | null
+      embedUrl: string
+      embedSupported: true
+    }
+  | {
+      service: 'spotify' | 'youtube'
+      serviceTrackId: string
+      serviceAlbumId: null
       embedUrl: string
       embedSupported: true
     }
   | {
       service: NonEmbedableService
       serviceTrackId: null
+      serviceAlbumId: null
       embedUrl: null
       embedSupported: false
     }
@@ -51,6 +64,7 @@ export type ServiceMatch =
 const NON_EMBED_FALLBACK = (service: NonEmbedableService): ServiceMatch => ({
   service,
   serviceTrackId: null,
+  serviceAlbumId: null,
   embedUrl: null,
   embedSupported: false,
 })
@@ -115,6 +129,7 @@ function matchYandex(url: URL): ServiceMatch {
     return {
       service: 'yandex',
       serviceTrackId: trackId,
+      serviceAlbumId: albumId,
       embedUrl: `https://music.yandex.ru/iframe/#track/${trackId}/${albumId}`,
       embedSupported: true,
     }
@@ -125,6 +140,7 @@ function matchYandex(url: URL): ServiceMatch {
     return {
       service: 'yandex',
       serviceTrackId: trackId,
+      serviceAlbumId: null,
       embedUrl: `https://music.yandex.ru/iframe/#track/${trackId}`,
       embedSupported: true,
     }
@@ -143,6 +159,7 @@ function matchSpotify(url: URL): ServiceMatch {
     return {
       service: 'spotify',
       serviceTrackId: id,
+      serviceAlbumId: null,
       embedUrl: `https://open.spotify.com/embed/track/${id}`,
       embedSupported: true,
     }
@@ -157,6 +174,7 @@ function matchYoutubeWatch(url: URL): ServiceMatch {
     return {
       service: 'youtube',
       serviceTrackId: videoId,
+      serviceAlbumId: null,
       embedUrl: `https://www.youtube.com/embed/${videoId}`,
       embedSupported: true,
     }
@@ -171,6 +189,7 @@ function matchYoutubeShort(url: URL): ServiceMatch {
     return {
       service: 'youtube',
       serviceTrackId: videoId,
+      serviceAlbumId: null,
       embedUrl: `https://www.youtube.com/embed/${videoId}`,
       embedSupported: true,
     }

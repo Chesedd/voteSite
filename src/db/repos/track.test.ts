@@ -38,6 +38,7 @@ function fakeRow(overrides: Record<string, unknown> = {}) {
     description: null,
     service: null,
     serviceTrackId: null,
+    serviceAlbumId: null,
     coverUrl: null,
     embedSupported: false,
     createdAt: new Date('2026-05-03T00:00:00Z'),

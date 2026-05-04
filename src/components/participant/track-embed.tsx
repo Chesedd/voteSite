@@ -36,6 +36,7 @@ function serviceName(service: string | null): string {
 export type TrackEmbedProps = {
   service: string | null
   serviceTrackId: string | null
+  serviceAlbumId: string | null
   embedSupported: boolean
   url: string | null
   coverUrl: string | null
@@ -44,26 +45,48 @@ export type TrackEmbedProps = {
 export function TrackEmbed({
   service,
   serviceTrackId,
+  serviceAlbumId,
   embedSupported,
   url,
   coverUrl,
 }: TrackEmbedProps) {
   if (embedSupported && service && serviceTrackId) {
-    return <EmbedIframe service={service} serviceTrackId={serviceTrackId} />
+    return (
+      <EmbedIframe
+        service={service}
+        serviceTrackId={serviceTrackId}
+        serviceAlbumId={serviceAlbumId}
+      />
+    )
   }
   return <EmbedFallback service={service} url={url} coverUrl={coverUrl} />
 }
 
-function EmbedIframe({ service, serviceTrackId }: { service: string; serviceTrackId: string }) {
+function EmbedIframe({
+  service,
+  serviceTrackId,
+  serviceAlbumId,
+}: {
+  service: string
+  serviceTrackId: string
+  serviceAlbumId: string | null
+}) {
   // Each provider's widget has its own natural height. Don't try to unify
   // them — Yandex's bar is ~100px, Spotify's compact card is 80px, and
   // YouTube needs ~200px because it shows video frames.
   if (service === 'yandex') {
+    // Yandex's iframe widget renders "Кажется, мы не попали в ноты" when only
+    // the track id is supplied for tracks that came from /album/X/track/Y
+    // URLs — both ids are needed. Tracks pasted from a bare /track/Y URL
+    // have no album id, and the track-only embed works for those.
+    const yandexEmbed = serviceAlbumId
+      ? `https://music.yandex.ru/iframe/#track/${serviceTrackId}/${serviceAlbumId}`
+      : `https://music.yandex.ru/iframe/#track/${serviceTrackId}`
     return (
       <div className="bg-muted overflow-hidden rounded-md">
         <iframe
           title={`${SERVICE_NAMES.yandex} — плеер`}
-          src={`https://music.yandex.ru/iframe/#track/${serviceTrackId}`}
+          src={yandexEmbed}
           width="100%"
           height={100}
           loading="lazy"

@@ -8,6 +8,7 @@
  * Success: 200 { ok: true, data: {
  *   service: 'yandex' | 'spotify' | 'youtube' | 'vk' | 'apple' | 'soundcloud' | 'other' | null,
  *   serviceTrackId: string | null,
+ *   serviceAlbumId: string | null,
  *   embedSupported: boolean,
  *   suggestedTitle: string | null,
  *   suggestedArtist: string | null,
@@ -100,6 +101,7 @@ export async function POST(req: Request): Promise<Response> {
 
     const service = detection?.service ?? null
     const serviceTrackId = detection?.serviceTrackId ?? null
+    const serviceAlbumId = detection?.serviceAlbumId ?? null
     const embedSupported = detection?.embedSupported === true
 
     const split = splitTitleArtist(metadata.title)
@@ -109,6 +111,7 @@ export async function POST(req: Request): Promise<Response> {
     return ok({
       service,
       serviceTrackId,
+      serviceAlbumId,
       embedSupported,
       suggestedTitle,
       suggestedArtist,

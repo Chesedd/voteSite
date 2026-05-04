@@ -169,6 +169,7 @@ export function TrackCard({
             <TrackEmbed
               service={track.service}
               serviceTrackId={track.serviceTrackId}
+              serviceAlbumId={track.serviceAlbumId}
               embedSupported={track.embedSupported}
               url={track.url}
               coverUrl={track.coverUrl}

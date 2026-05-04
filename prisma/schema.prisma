@@ -62,6 +62,7 @@ model Track {
   description    String?
   service        String?
   serviceTrackId String?
+  serviceAlbumId String?
   coverUrl       String?
   embedSupported Boolean  @default(false)
   createdAt      DateTime @default(now())

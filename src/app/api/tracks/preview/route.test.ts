@@ -20,6 +20,7 @@ type SessionRow = NonNullable<Awaited<ReturnType<typeof getActiveSession>>>
 type PreviewData = {
   service: string | null
   serviceTrackId: string | null
+  serviceAlbumId: string | null
   embedSupported: boolean
   suggestedTitle: string | null
   suggestedArtist: string | null
@@ -177,6 +178,7 @@ describe('POST /api/tracks/preview', () => {
     expect(body.data).toEqual({
       service: 'yandex',
       serviceTrackId: '20',
+      serviceAlbumId: '10',
       embedSupported: true,
       suggestedTitle: 'Imagine',
       suggestedArtist: 'John Lennon',
@@ -208,6 +210,7 @@ describe('POST /api/tracks/preview', () => {
     expect(body.data).toEqual({
       service: 'spotify',
       serviceTrackId: 'abc123',
+      serviceAlbumId: null,
       embedSupported: true,
       suggestedTitle: null,
       suggestedArtist: null,
@@ -229,6 +232,26 @@ describe('POST /api/tracks/preview', () => {
     const body = (await res.json()) as ApiSuccess<PreviewData>
     expect(body.data.suggestedTitle).toBe('Bohemian Rhapsody')
     expect(body.data.suggestedArtist).toBe('Spotify')
+  })
+
+  it('returns serviceAlbumId for Yandex /album/X/track/Y URLs', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(htmlResponse('<html></html>')))
+
+    const res = await POST(makeRequest({ url: 'https://music.yandex.ru/album/123/track/456' }))
+    const body = (await res.json()) as ApiSuccess<PreviewData>
+    expect(body.data.service).toBe('yandex')
+    expect(body.data.serviceTrackId).toBe('456')
+    expect(body.data.serviceAlbumId).toBe('123')
+  })
+
+  it('returns null serviceAlbumId for Yandex /track/Y URLs without album', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(htmlResponse('<html></html>')))
+
+    const res = await POST(makeRequest({ url: 'https://music.yandex.ru/track/789' }))
+    const body = (await res.json()) as ApiSuccess<PreviewData>
+    expect(body.data.service).toBe('yandex')
+    expect(body.data.serviceTrackId).toBe('789')
+    expect(body.data.serviceAlbumId).toBeNull()
   })
 
   it('VK URL returns service=vk, embedSupported=false', async () => {
