@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 
+import { ParticipantHome } from '@/components/participant/participant-home'
 import { getActiveSession } from '@/db/repos/session'
-import { getParticipantById } from '@/db/repos/participant'
+import { listTracks } from '@/db/repos/track'
 import { getSessionUser } from '@/lib/auth/guards'
 import { decideHomeRoute } from '@/lib/routing'
 
@@ -12,21 +13,22 @@ export default async function Home() {
   const decision = await decideHomeRoute()
   if (decision.kind === 'redirect') redirect(decision.to)
 
-  // decision.kind === 'render' && decision.as === 'participant'
-  const [session, user] = await Promise.all([getActiveSession(), getSessionUser()])
-  const participant =
-    user?.kind === 'participant' ? await getParticipantById(user.participantId) : null
+  // decideHomeRoute already covers the redirect cases above; the manual
+  // re-checks below let TypeScript narrow `session` and `user` to non-null,
+  // and guard against a race where state changed between the two reads.
+  const session = await getActiveSession()
+  const user = await getSessionUser()
+  if (!session) redirect('/setup')
+  if (!user || user.kind !== 'participant') redirect('/login')
+
+  const tracks = await listTracks(session.id)
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold tracking-tight">Привет!</h1>
-      <p className="text-muted-foreground text-sm">Этот экран будет заменён в следующей фазе.</p>
-      <dl className="text-muted-foreground grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt>Имя</dt>
-        <dd className="text-foreground">{participant?.displayName ?? '—'}</dd>
-        <dt>Этап</dt>
-        <dd className="text-foreground">{session?.stage ?? '—'}</dd>
-      </dl>
-    </div>
+    <ParticipantHome
+      sessionTitle={session.title}
+      stage={session.stage}
+      currentParticipantId={user.participantId}
+      tracks={tracks}
+    />
   )
 }
