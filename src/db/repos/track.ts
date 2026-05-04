@@ -24,6 +24,7 @@ export type TrackPublic = {
   description: string | null
   service: string | null
   serviceTrackId: string | null
+  serviceAlbumId: string | null
   coverUrl: string | null
   embedSupported: boolean
   submittedBy: { id: string; displayName: string | null }
@@ -45,6 +46,7 @@ function toPublic(t: TrackWithSubmitter): TrackPublic {
     description: t.description,
     service: t.service,
     serviceTrackId: t.serviceTrackId,
+    serviceAlbumId: t.serviceAlbumId,
     coverUrl: t.coverUrl,
     embedSupported: t.embedSupported,
     submittedBy: { id: t.submittedBy.id, displayName: t.submittedBy.displayName },
@@ -78,6 +80,7 @@ export async function createTrack(params: {
   description?: string | null
   service?: string | null
   serviceTrackId?: string | null
+  serviceAlbumId?: string | null
   coverUrl?: string | null
   embedSupported?: boolean
 }): Promise<TrackPublic> {
@@ -91,6 +94,7 @@ export async function createTrack(params: {
       description: params.description ?? null,
       service: params.service ?? null,
       serviceTrackId: params.serviceTrackId ?? null,
+      serviceAlbumId: params.serviceAlbumId ?? null,
       coverUrl: params.coverUrl ?? null,
       embedSupported: params.embedSupported ?? false,
     },
@@ -114,6 +118,7 @@ export async function updateTrack(
     description: string | null
     service: string | null
     serviceTrackId: string | null
+    serviceAlbumId: string | null
     coverUrl: string | null
     embedSupported: boolean
   }>,

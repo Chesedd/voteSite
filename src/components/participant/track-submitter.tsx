@@ -46,6 +46,7 @@ const SERVICE_LABELS: Record<Service, string> = {
 type PreviewData = {
   service: Service | null
   serviceTrackId: string | null
+  serviceAlbumId: string | null
   embedSupported: boolean
   suggestedTitle: string | null
   suggestedArtist: string | null
@@ -155,6 +156,7 @@ export function TrackSubmitter() {
           description: description.trim() || null,
           service: preview.service,
           serviceTrackId: preview.serviceTrackId,
+          serviceAlbumId: preview.serviceAlbumId,
           coverUrl: preview.coverUrl,
           embedSupported: preview.embedSupported,
         }),

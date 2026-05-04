@@ -61,6 +61,11 @@ const optionalService = z
   .optional()
   .transform((v) => (v == null ? null : v))
 
+const optionalServiceId = z
+  .union([z.string().trim().min(1).max(SERVICE_TRACK_ID_MAX), z.literal(''), z.null()])
+  .optional()
+  .transform((v) => (v === '' || v == null ? null : v))
+
 const PostBodySchema = z
   .object({
     title: z.string().trim().min(1).max(TITLE_MAX),
@@ -68,10 +73,8 @@ const PostBodySchema = z
     url: optionalUrl,
     description: optionalText(DESCRIPTION_MAX),
     service: optionalService,
-    serviceTrackId: z
-      .union([z.string().trim().min(1).max(SERVICE_TRACK_ID_MAX), z.literal(''), z.null()])
-      .optional()
-      .transform((v) => (v === '' || v == null ? null : v)),
+    serviceTrackId: optionalServiceId,
+    serviceAlbumId: optionalServiceId,
     coverUrl: optionalUrl,
     embedSupported: z.boolean().optional().default(false),
   })
@@ -129,6 +132,7 @@ export async function POST(req: Request): Promise<Response> {
       description: parsed.data.description,
       service: parsed.data.service,
       serviceTrackId: parsed.data.serviceTrackId,
+      serviceAlbumId: parsed.data.serviceAlbumId,
       coverUrl: parsed.data.coverUrl,
       embedSupported: parsed.data.embedSupported,
     })
