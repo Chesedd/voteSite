@@ -2,10 +2,14 @@
  * Reusable card for displaying a single track in the participant UI.
  *
  * Used both for the "Мои треки" list (with edit/delete dropdown) and the
- * "Все треки" pool (read-only). Embed player rendering is intentionally
- * out-of-scope for this ticket — see ROADMAP P4-05. For now the card shows
- * cover image (via plain <img>), title/artist, service badge, embed
- * indicator, description, and submitter footer.
+ * "Все треки" pool (read-only). Layout: cover thumbnail at top-left for
+ * list scanning, metadata block (title/artist/service/description/footer)
+ * to the right, and a TrackEmbed (iframe player or "Открыть" fallback)
+ * spanning the full width below.
+ *
+ * The thumbnail and the embed cover are intentionally not deduplicated —
+ * the thumbnail is for list scanning and the embed renders its own
+ * service-native artwork sized for listening.
  *
  * The cover image is rendered with a plain <img> rather than next/image
  * because OG images come from arbitrary external domains (any music service
@@ -27,6 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { TrackEmbed } from '@/components/participant/track-embed'
 import { cn } from '@/lib/utils'
 import type { TrackPublic } from '@/db/repos/track'
 
@@ -160,7 +165,16 @@ export function TrackCard({
               {track.description}
             </p>
           ) : null}
-          <p className="text-muted-foreground mt-1 text-xs">
+          <div className="mt-2">
+            <TrackEmbed
+              service={track.service}
+              serviceTrackId={track.serviceTrackId}
+              embedSupported={track.embedSupported}
+              url={track.url}
+              coverUrl={track.coverUrl}
+            />
+          </div>
+          <p className="text-muted-foreground mt-2 text-xs">
             Добавил {track.submittedBy.displayName ?? 'участник'} ·{' '}
             {formatRelative(track.createdAt)}
           </p>
