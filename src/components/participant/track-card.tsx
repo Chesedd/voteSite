@@ -52,37 +52,6 @@ function serviceLabel(service: string | null): string {
   return SERVICE_LABELS[service] ?? 'Другой сервис'
 }
 
-const RELATIVE_FORMATTER = new Intl.RelativeTimeFormat('ru', { numeric: 'auto' })
-const ABSOLUTE_FORMATTER = new Intl.DateTimeFormat('ru-RU', {
-  day: 'numeric',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-})
-
-const RELATIVE_THRESHOLDS: ReadonlyArray<readonly [Intl.RelativeTimeFormatUnit, number]> = [
-  ['minute', 60],
-  ['hour', 60 * 60],
-  ['day', 60 * 60 * 24],
-]
-
-function formatRelative(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date
-  const diffSec = (d.getTime() - Date.now()) / 1000
-  const absSec = Math.abs(diffSec)
-
-  if (absSec < 60) return 'только что'
-
-  for (const [unit, divisor] of RELATIVE_THRESHOLDS) {
-    if (absSec < divisor * 60) {
-      const value = Math.round(diffSec / divisor)
-      return RELATIVE_FORMATTER.format(value, unit)
-    }
-  }
-  // Older than ~24h — fall back to absolute date.
-  return ABSOLUTE_FORMATTER.format(d)
-}
-
 export type TrackCardProps = {
   track: TrackPublic
   isOwn?: boolean
@@ -146,10 +115,6 @@ export function TrackCard({ track, isOwn = false, bottomActions }: TrackCardProp
               coverUrl={track.coverUrl}
             />
           </div>
-          <p className="text-muted-foreground mt-2 text-xs">
-            Добавил {track.submittedBy.displayName ?? 'участник'} ·{' '}
-            {formatRelative(track.createdAt)}
-          </p>
         </div>
       </CardContent>
       {bottomActions ? <div className="border-t px-4 py-3">{bottomActions}</div> : null}

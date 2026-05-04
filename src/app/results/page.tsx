@@ -10,6 +10,11 @@
  *
  * The non-redirect notices are deliberate — a participant who lands here
  * before reveal should see *why* they don't see results, not bounce around.
+ *
+ * As of Phase 8 the winner is auto-shown on `/` for participants when the
+ * session is FINISHED, and there is no UI entry point that links here. This
+ * page is kept (along with `GET /api/results` and the `revealResults` flag)
+ * for potential future reveal-style UX without a follow-up migration.
  */
 
 import { redirect } from 'next/navigation'

@@ -4,7 +4,8 @@
  * Dispatches by stage:
  *   - STAGE1: header + "Мой блок" submission form/own tracks + "Все треки".
  *   - STAGE2: delegates to <VotingHome> (sticky top-3 panel + rank selectors).
- *   - FINISHED: header + "Все треки" + "voting closed" notice.
+ *   - FINISHED: header + auto-shown <WinnerDisplay> (Phase 8 polish — no
+ *     admin reveal gate, no track list, just the winner).
  *
  * Mutations on STAGE1 (create / edit / delete) all flow through
  * `router.refresh()` which re-runs the parent server component and refetches
@@ -16,7 +17,6 @@
 
 import type { SessionStage } from '@prisma/client'
 import { MoreHorizontalIcon } from 'lucide-react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -27,6 +27,7 @@ import { TrackDeleteConfirm } from '@/components/participant/track-delete-confir
 import { TrackEditDialog } from '@/components/participant/track-edit-dialog'
 import { TrackSubmitter } from '@/components/participant/track-submitter'
 import { VotingHome } from '@/components/participant/voting-home'
+import { WinnerDisplay } from '@/components/participant/winner-display'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,7 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { TrackPublic } from '@/db/repos/track'
 import type { VotesByRank } from '@/db/repos/vote'
-import type { SessionSettings } from '@/lib/settings'
+import type { TrackResult } from '@/lib/scoring'
 
 const TRACK_LIMIT = 3
 
@@ -47,7 +48,7 @@ type ParticipantHomeProps = {
   currentParticipantId: string
   tracks: TrackPublic[]
   initialVotes: VotesByRank | null
-  settings: SessionSettings
+  results: TrackResult[] | null
 }
 
 export function ParticipantHome({
@@ -56,7 +57,7 @@ export function ParticipantHome({
   currentParticipantId,
   tracks,
   initialVotes,
-  settings,
+  results,
 }: ParticipantHomeProps) {
   const router = useRouter()
   const [editing, setEditing] = useState<TrackPublic | null>(null)
@@ -74,10 +75,6 @@ export function ParticipantHome({
     )
   }
 
-  const ownTracks = tracks.filter((t) => t.submittedBy.id === currentParticipantId)
-  const ownCount = ownTracks.length
-  const limitReached = ownCount >= TRACK_LIMIT
-
   async function handleLogout() {
     setLoggingOut(true)
     try {
@@ -90,109 +87,98 @@ export function ParticipantHome({
     }
   }
 
+  const header = (
+    <header className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-xl font-semibold tracking-tight">{sessionTitle}</h1>
+        <StageBadge stage={stage} size="sm" />
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleLogout}
+        disabled={loggingOut}
+        className="self-start sm:self-auto"
+      >
+        {loggingOut ? 'Выходим…' : 'Выйти'}
+      </Button>
+    </header>
+  )
+
+  if (stage === 'FINISHED') {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        {header}
+        <WinnerDisplay results={results ?? []} tracks={tracks} />
+      </div>
+    )
+  }
+
+  const ownTracks = tracks.filter((t) => t.submittedBy.id === currentParticipantId)
+  const ownCount = ownTracks.length
+  const limitReached = ownCount >= TRACK_LIMIT
+
   return (
     <div className="flex w-full flex-col gap-6">
-      <header className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-xl font-semibold tracking-tight">{sessionTitle}</h1>
-          <StageBadge stage={stage} size="sm" />
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleLogout}
-          disabled={loggingOut}
-          className="self-start sm:self-auto"
-        >
-          {loggingOut ? 'Выходим…' : 'Выйти'}
-        </Button>
-      </header>
+      {header}
 
       <section aria-labelledby="my-block-heading" className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="my-block-heading" className="text-lg font-semibold tracking-tight">
             Мой блок
           </h2>
-          {stage === 'STAGE1' ? (
-            <p className="text-muted-foreground text-sm">
-              Мои треки ({ownCount}/{TRACK_LIMIT})
-            </p>
-          ) : null}
+          <p className="text-muted-foreground text-sm">
+            Мои треки ({ownCount}/{TRACK_LIMIT})
+          </p>
         </div>
 
-        {stage === 'STAGE1' ? (
-          <>
-            {limitReached ? (
-              <Alert>
-                <AlertTitle>Лимит {TRACK_LIMIT} трека достигнут</AlertTitle>
-                <AlertDescription>Удалите один трек, чтобы добавить новый.</AlertDescription>
-              </Alert>
-            ) : (
-              <TrackSubmitter />
-            )}
-            {ownCount > 0 ? (
-              <ul className="flex flex-col gap-3">
-                {ownTracks.map((t) => (
-                  <li key={t.id}>
-                    <TrackCard
-                      track={t}
-                      isOwn
-                      bottomActions={
-                        <div className="flex justify-end">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                aria-label="Действия с треком"
-                              >
-                                <MoreHorizontalIcon />
-                                Действия
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onSelect={() => setEditing(t)}>
-                                Редактировать
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onSelect={() => setDeleting(t)}
-                              >
-                                Удалить
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      }
-                    />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-muted-foreground text-sm">Вы ещё не добавили ни одного трека.</p>
-            )}
-          </>
-        ) : null}
-
-        {stage === 'FINISHED' ? (
-          settings.revealResults ? (
-            <Alert>
-              <AlertTitle>Голосование завершено</AlertTitle>
-              <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <span>Админ открыл результаты.</span>
-                <Button asChild size="sm" variant="default" className="self-start sm:self-auto">
-                  <Link href="/results">Посмотреть результаты</Link>
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Alert>
-              <AlertTitle>Голосование завершено</AlertTitle>
-              <AlertDescription>Дождитесь, пока админ опубликует результаты.</AlertDescription>
-            </Alert>
-          )
-        ) : null}
+        {limitReached ? (
+          <Alert>
+            <AlertTitle>Лимит {TRACK_LIMIT} трека достигнут</AlertTitle>
+            <AlertDescription>Удалите один трек, чтобы добавить новый.</AlertDescription>
+          </Alert>
+        ) : (
+          <TrackSubmitter />
+        )}
+        {ownCount > 0 ? (
+          <ul className="flex flex-col gap-3">
+            {ownTracks.map((t) => (
+              <li key={t.id}>
+                <TrackCard
+                  track={t}
+                  isOwn
+                  bottomActions={
+                    <div className="flex justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            aria-label="Действия с треком"
+                          >
+                            <MoreHorizontalIcon />
+                            Действия
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => setEditing(t)}>
+                            Редактировать
+                          </DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(t)}>
+                            Удалить
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground text-sm">Вы ещё не добавили ни одного трека.</p>
+        )}
       </section>
 
       <section aria-labelledby="pool-heading" className="flex flex-col gap-4">
