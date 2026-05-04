@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import { detectService } from './track-url'
 
+// Documents Yandex's official embed format as of 2026-05-04: the
+// "Поделиться → HTML-код" UI emits path-based URLs of the form
+// /iframe/album/{albumId}/track/{trackId}. The older hash-fragment form
+// /iframe/#track/{trackId}/{albumId} is deprecated and renders
+// "Кажется, мы не попали в ноты".
 describe('detectService — Yandex Music', () => {
   it('parses /album/{albumId}/track/{trackId}', () => {
     const result = detectService('https://music.yandex.ru/album/123/track/456')
@@ -9,7 +14,7 @@ describe('detectService — Yandex Music', () => {
       service: 'yandex',
       serviceTrackId: '456',
       serviceAlbumId: '123',
-      embedUrl: 'https://music.yandex.ru/iframe/#track/456/123',
+      embedUrl: 'https://music.yandex.ru/iframe/album/123/track/456',
       embedSupported: true,
     })
   })
@@ -20,7 +25,7 @@ describe('detectService — Yandex Music', () => {
       service: 'yandex',
       serviceTrackId: '789',
       serviceAlbumId: null,
-      embedUrl: 'https://music.yandex.ru/iframe/#track/789',
+      embedUrl: 'https://music.yandex.ru/iframe/track/789',
       embedSupported: true,
     })
   })
@@ -36,7 +41,7 @@ describe('detectService — Yandex Music', () => {
     if (result?.service === 'yandex') {
       expect(result.serviceAlbumId).toBe('9876')
     }
-    expect(result?.embedUrl).toBe('https://music.yandex.ru/iframe/#track/5432/9876')
+    expect(result?.embedUrl).toBe('https://music.yandex.ru/iframe/album/9876/track/5432')
   })
 
   it('parses .com TLD the same way as .ru', () => {
