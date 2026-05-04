@@ -129,14 +129,17 @@ export function ParticipantHome({
         {stage === 'STAGE2' ? (
           <Alert>
             <AlertTitle>Этап 2: Голосование</AlertTitle>
-            <AlertDescription>Голосование появится здесь скоро.</AlertDescription>
+            <AlertDescription>
+              Голосование запущено. Возможность отдать голос появится здесь, как только её добавят
+              (фаза разработки).
+            </AlertDescription>
           </Alert>
         ) : null}
 
         {stage === 'FINISHED' ? (
           <Alert>
             <AlertTitle>Голосование завершено</AlertTitle>
-            <AlertDescription>Дождитесь, пока админ опубликует результаты.</AlertDescription>
+            <AlertDescription>Результаты появятся здесь, когда админ их откроет.</AlertDescription>
           </Alert>
         ) : null}
       </section>
