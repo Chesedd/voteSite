@@ -1,22 +1,21 @@
 /**
  * Participant home — the page rendered at `/` for logged-in participants.
  *
- * Layout:
- *   - Header: session title + StageBadge + logout
- *   - "Мой блок" section (STAGE1 only): submission form + own tracks
- *   - "Все треки" section: full pool, including own (un-deduplicated)
+ * Dispatches by stage:
+ *   - STAGE1: header + "Мой блок" submission form/own tracks + "Все треки".
+ *   - STAGE2: delegates to <VotingHome> (sticky top-3 panel + rank selectors).
+ *   - FINISHED: header + "Все треки" + "voting closed" notice.
  *
- * For STAGE2 / FINISHED the submission UI is replaced with a stage-appropriate
- * notice. The full voting UI is out-of-scope here — see ROADMAP P6-02.
- *
- * Mutations (create / edit / delete) all flow through `router.refresh()` which
- * re-runs the parent server component and refetches tracks. Simpler than
- * maintaining a parallel client cache for a 5–20 person app.
+ * Mutations on STAGE1 (create / edit / delete) all flow through
+ * `router.refresh()` which re-runs the parent server component and refetches
+ * tracks. Simpler than maintaining a parallel client cache for a 5–20 person
+ * app. STAGE2 uses optimistic local state — see `<VotingHome>`.
  */
 
 'use client'
 
 import type { SessionStage } from '@prisma/client'
+import { MoreHorizontalIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -26,9 +25,17 @@ import { TrackCard } from '@/components/participant/track-card'
 import { TrackDeleteConfirm } from '@/components/participant/track-delete-confirm'
 import { TrackEditDialog } from '@/components/participant/track-edit-dialog'
 import { TrackSubmitter } from '@/components/participant/track-submitter'
+import { VotingHome } from '@/components/participant/voting-home'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import type { TrackPublic } from '@/db/repos/track'
+import type { VotesByRank } from '@/db/repos/vote'
 
 const TRACK_LIMIT = 3
 
@@ -37,6 +44,7 @@ type ParticipantHomeProps = {
   stage: SessionStage
   currentParticipantId: string
   tracks: TrackPublic[]
+  initialVotes: VotesByRank | null
 }
 
 export function ParticipantHome({
@@ -44,11 +52,23 @@ export function ParticipantHome({
   stage,
   currentParticipantId,
   tracks,
+  initialVotes,
 }: ParticipantHomeProps) {
   const router = useRouter()
   const [editing, setEditing] = useState<TrackPublic | null>(null)
   const [deleting, setDeleting] = useState<TrackPublic | null>(null)
   const [loggingOut, setLoggingOut] = useState(false)
+
+  if (stage === 'STAGE2') {
+    return (
+      <VotingHome
+        sessionTitle={sessionTitle}
+        currentParticipantId={currentParticipantId}
+        tracks={tracks}
+        initialVotes={initialVotes ?? { 1: null, 2: null, 3: null }}
+      />
+    )
+  }
 
   const ownTracks = tracks.filter((t) => t.submittedBy.id === currentParticipantId)
   const ownCount = ownTracks.length
@@ -112,10 +132,35 @@ export function ParticipantHome({
                   <li key={t.id}>
                     <TrackCard
                       track={t}
-                      actions="own"
                       isOwn
-                      onEdit={() => setEditing(t)}
-                      onDelete={() => setDeleting(t)}
+                      bottomActions={
+                        <div className="flex justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                aria-label="Действия с треком"
+                              >
+                                <MoreHorizontalIcon />
+                                Действия
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onSelect={() => setEditing(t)}>
+                                Редактировать
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onSelect={() => setDeleting(t)}
+                              >
+                                Удалить
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      }
                     />
                   </li>
                 ))}
@@ -124,13 +169,6 @@ export function ParticipantHome({
               <p className="text-muted-foreground text-sm">Вы ещё не добавили ни одного трека.</p>
             )}
           </>
-        ) : null}
-
-        {stage === 'STAGE2' ? (
-          <Alert>
-            <AlertTitle>Этап 2: Голосование</AlertTitle>
-            <AlertDescription>Голосование появится здесь скоро.</AlertDescription>
-          </Alert>
         ) : null}
 
         {stage === 'FINISHED' ? (

@@ -1,11 +1,17 @@
 /**
  * Reusable card for displaying a single track in the participant UI.
  *
- * Used both for the "Мои треки" list (with edit/delete dropdown) and the
- * "Все треки" pool (read-only). Layout: cover thumbnail at top-left for
- * list scanning, metadata block (title/artist/service/description/footer)
- * to the right, and a TrackEmbed (iframe player or "Открыть" fallback)
- * spanning the full width below.
+ * Used in both the "Мои треки" (with edit/delete dropdown) and "Все треки"
+ * lists across stages. Layout: cover thumbnail at top-left for list scanning,
+ * metadata block (title/artist/service/description) to its right, embed
+ * (iframe player or "Открыть" fallback) below, and an optional `bottomActions`
+ * slot for stage-specific controls.
+ *
+ * Why a single `bottomActions` slot rather than baked-in actions? STAGE1 own
+ * tracks need an edit/delete menu; STAGE2 needs a rank selector; FINISHED
+ * needs nothing. The two responsibilities never overlap on the same card,
+ * so one parent-supplied slot keeps this component free of stage logic and
+ * lets STAGE2 re-use it via `<TrackRankSelector>`.
  *
  * The thumbnail and the embed cover are intentionally not deduplicated —
  * the thumbnail is for list scanning and the embed renders its own
@@ -16,21 +22,17 @@
  * the participant pastes a link to). Configuring next.config.ts
  * remotePatterns for an open-ended set of hosts is more friction than the
  * image optimization buys us at this scale (5–20 participants).
+ *
+ * Each card sets `id={`track-${track.id}`}` so the STAGE2 top-three panel can
+ * scroll-into-view a chosen track via `getElementById`.
  */
 
 'use client'
 
-import { MoreHorizontalIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { TrackEmbed } from '@/components/participant/track-embed'
 import { cn } from '@/lib/utils'
 import type { TrackPublic } from '@/db/repos/track'
@@ -83,21 +85,16 @@ function formatRelative(date: Date | string): string {
 
 export type TrackCardProps = {
   track: TrackPublic
-  actions?: 'own' | null
-  onEdit?: () => void
-  onDelete?: () => void
   isOwn?: boolean
+  bottomActions?: ReactNode
 }
 
-export function TrackCard({
-  track,
-  actions = null,
-  onEdit,
-  onDelete,
-  isOwn = false,
-}: TrackCardProps) {
+export function TrackCard({ track, isOwn = false, bottomActions }: TrackCardProps) {
   return (
-    <Card className={cn('gap-0 py-0', isOwn && 'ring-primary/40 ring-1 ring-offset-0')}>
+    <Card
+      id={`track-${track.id}`}
+      className={cn('scroll-mt-24 gap-0 py-0', isOwn && 'ring-primary/40 ring-1 ring-offset-0')}
+    >
       <CardContent className="flex gap-4 p-4">
         {track.coverUrl ? (
           // Plain <img>: cover URLs come from arbitrary OG sources we can't
@@ -115,36 +112,10 @@ export function TrackCard({
           </div>
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="truncate leading-tight font-semibold">{track.title}</p>
-              {track.artist ? (
-                <p className="text-muted-foreground truncate text-sm">{track.artist}</p>
-              ) : null}
-            </div>
-            {actions === 'own' && (onEdit || onDelete) ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Действия с треком"
-                  >
-                    <MoreHorizontalIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {onEdit ? (
-                    <DropdownMenuItem onSelect={onEdit}>Редактировать</DropdownMenuItem>
-                  ) : null}
-                  {onDelete ? (
-                    <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-                      Удалить
-                    </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
+          <div className="min-w-0">
+            <p className="truncate leading-tight font-semibold">{track.title}</p>
+            {track.artist ? (
+              <p className="text-muted-foreground truncate text-sm">{track.artist}</p>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -181,6 +152,7 @@ export function TrackCard({
           </p>
         </div>
       </CardContent>
+      {bottomActions ? <div className="border-t px-4 py-3">{bottomActions}</div> : null}
     </Card>
   )
 }
