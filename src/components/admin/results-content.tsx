@@ -16,25 +16,25 @@
 import { useState } from 'react'
 import { ChevronDownIcon, DownloadIcon } from 'lucide-react'
 import type { SessionStage } from '@prisma/client'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
+import { ResultsBarChart } from '@/components/results/results-bar-chart'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import type { ApiResponse } from '@/lib/api/responses'
 import type { ResultsData } from '@/lib/results'
+import type { SessionSettings } from '@/lib/settings'
 import { cn } from '@/lib/utils'
 
 type ResultsContentProps = {
   stage: SessionStage
   data: ResultsData
-}
-
-const TITLE_TRUNCATE_LENGTH = 30
-
-function truncate(value: string, max = TITLE_TRUNCATE_LENGTH): string {
-  if (value.length <= max) return value
-  return value.slice(0, max - 1) + '…'
+  settings: SessionSettings
 }
 
 function rankEmoji(rank: 1 | 2 | 3 | null): string {
@@ -44,13 +44,17 @@ function rankEmoji(rank: 1 | 2 | 3 | null): string {
   return '—'
 }
 
-export function ResultsContent({ stage, data }: ResultsContentProps) {
+export function ResultsContent({ stage, data, settings }: ResultsContentProps) {
   const { results, matrix, meta } = data
   const hasVotes = meta.votingParticipants > 0
   const isStage1 = stage === 'STAGE1'
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Reveal toggle is meaningful only after voting closes — see */}
+      {/* PATCH /api/admin/settings stage gate. Hide outside FINISHED. */}
+      {stage === 'FINISHED' && <RevealToggleCard initial={settings.revealResults ?? false} />}
+
       <SummaryCard stage={stage} meta={meta} hasVotes={hasVotes} />
 
       {!isStage1 && (
@@ -67,7 +71,7 @@ export function ResultsContent({ stage, data }: ResultsContentProps) {
           <CardContent>
             {hasVotes ? (
               <div className="flex flex-col gap-6">
-                <ResultsChart results={results} />
+                <ResultsBarChart results={results} />
                 <ResultsTable results={results} />
               </div>
             ) : (
@@ -81,6 +85,62 @@ export function ResultsContent({ stage, data }: ResultsContentProps) {
 
       {!isStage1 && hasVotes && <VoterMatrixCard matrix={matrix} />}
     </div>
+  )
+}
+
+function RevealToggleCard({ initial }: { initial: boolean }) {
+  const router = useRouter()
+  const [revealed, setRevealed] = useState(initial)
+  const [pending, setPending] = useState(false)
+
+  async function toggle(next: boolean) {
+    // Optimistic flip — revert on failure so the switch doesn't lie.
+    setRevealed(next)
+    setPending(true)
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ revealResults: next }),
+      })
+      const body = (await res.json()) as ApiResponse<{ settings: SessionSettings }>
+      if (!body.ok) {
+        throw new Error(body.error.message)
+      }
+      toast.success(next ? 'Результаты открыты участникам' : 'Результаты снова скрыты')
+      router.refresh()
+    } catch (e) {
+      setRevealed(!next)
+      const message = e instanceof Error ? e.message : 'Не удалось обновить настройки'
+      toast.error(message)
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Видимость результатов</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="reveal-results-switch" className="text-sm font-medium">
+            Показать результаты участникам
+          </Label>
+          <p className="text-muted-foreground text-sm">
+            После включения участники увидят итоговый рейтинг треков. Изменения видны мгновенно.
+          </p>
+        </div>
+        <Switch
+          id="reveal-results-switch"
+          checked={revealed}
+          onCheckedChange={toggle}
+          disabled={pending}
+          aria-label="Показать результаты участникам"
+        />
+      </CardContent>
+    </Card>
   )
 }
 
@@ -127,57 +187,6 @@ function SummaryCard({
         )}
       </CardContent>
     </Card>
-  )
-}
-
-function ResultsChart({ results }: { results: ResultsData['results'] }) {
-  const chartData = results.map((r) => ({
-    title: truncate(r.title),
-    fullTitle: r.title,
-    points: r.points,
-  }))
-  const height = Math.max(160, chartData.length * 36 + 40)
-
-  return (
-    <div style={{ width: '100%', height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={chartData}
-          layout="vertical"
-          margin={{ top: 8, right: 16, bottom: 8, left: 16 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis
-            type="number"
-            allowDecimals={false}
-            stroke="var(--muted-foreground)"
-            fontSize={12}
-          />
-          <YAxis
-            dataKey="title"
-            type="category"
-            width={140}
-            stroke="var(--muted-foreground)"
-            fontSize={12}
-          />
-          <Tooltip
-            cursor={{ fill: 'var(--muted)', fillOpacity: 0.4 }}
-            contentStyle={{
-              background: 'var(--popover)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              color: 'var(--popover-foreground)',
-            }}
-            formatter={(value) => [String(value), 'Очки']}
-            labelFormatter={(_label, payload) => {
-              const item = payload?.[0]?.payload as { fullTitle?: string } | undefined
-              return item?.fullTitle ?? ''
-            }}
-          />
-          <Bar dataKey="points" fill="var(--primary)" radius={[0, 4, 4, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
   )
 }
 

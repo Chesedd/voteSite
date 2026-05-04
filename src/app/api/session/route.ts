@@ -2,19 +2,21 @@
  * GET /api/session — current session metadata for the authenticated user.
  *
  * Auth: any authenticated user (admin or participant).
- * Success: 200 { ok: true, data: { id, title, stage, maxParticipants, joinToken? } }
+ * Success: 200 { ok: true, data: { id, title, stage, maxParticipants, settings, joinToken? } }
  * Errors:  401 UNAUTHORIZED | 404 NOT_FOUND
  *
  * Used by the participant voting screen to detect stage transitions (so the
- * page can `router.refresh()` when admin advances the stage) and by anything
- * else that needs a cheap polling target. `joinToken` is admin-only — see
- * ARCHITECTURE.md "Visibility Matrix": participants don't need it and we'd
- * rather not leak it onto every voting client unnecessarily.
+ * page can `router.refresh()` when admin advances the stage) and by the
+ * participant results page to notice when admin toggles `revealResults`. The
+ * `joinToken` is admin-only — see ARCHITECTURE.md "Visibility Matrix":
+ * participants don't need it and we'd rather not leak it onto every voting
+ * client unnecessarily.
  */
 
 import { err, ok } from '@/lib/api/responses'
 import { getSessionUser } from '@/lib/auth/guards'
 import { getActiveSession } from '@/db/repos/session'
+import { parseSessionSettings } from '@/lib/settings'
 
 export async function GET(): Promise<Response> {
   try {
@@ -31,6 +33,7 @@ export async function GET(): Promise<Response> {
       title: session.title,
       stage: session.stage,
       maxParticipants: session.maxParticipants,
+      settings: parseSessionSettings(session.settings),
     }
     if (user.kind === 'admin') {
       return ok({ ...base, joinToken: session.joinToken })

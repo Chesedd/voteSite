@@ -6,6 +6,7 @@ import { listTracks } from '@/db/repos/track'
 import { getVotesByRankForParticipant } from '@/db/repos/vote'
 import { getSessionUser } from '@/lib/auth/guards'
 import { decideHomeRoute } from '@/lib/routing'
+import { parseSessionSettings } from '@/lib/settings'
 
 // Reads cookie + DB on every request. Must run per-request, not at build time.
 export const dynamic = 'force-dynamic'
@@ -33,6 +34,7 @@ export default async function Home() {
       currentParticipantId={user.participantId}
       tracks={tracks}
       initialVotes={initialVotes}
+      settings={parseSessionSettings(session.settings)}
     />
   )
 }

@@ -85,13 +85,21 @@ Vote
 
 ```ts
 type SessionSettings = {
-  maxTracksPerParticipant: number  // default 3
-  revealResults: boolean           // default false (only relevant in FINISHED)
-  // future: anonymize, votingMethod, etc.
+  revealResults?: boolean  // default false (only relevant in FINISHED)
+  // future: anonymize, votingMethod, maxTracksPerParticipant, etc.
 }
 ```
 
-Stored as JSON to avoid migrations when adding new toggles. Always read with a Zod schema providing defaults.
+Stored as JSON so adding a new toggle is a one-line change to
+`src/lib/settings.ts` instead of a migration. Always read through
+`parseSessionSettings(value)` (Zod parse + safe fallback to `{}`) — never trust
+the raw `Json` value, since older rows may have a stale shape. Writes go
+through `updateSessionSettings(sessionId, patch)` which merges the patch onto
+the current blob so unrelated keys survive.
+
+Defaults are applied at *read* time, not stored. A fresh row keeps `settings`
+as `{}` and only grows as toggles flip. `revealResults` is defaulted to
+`false` (results hidden) on read.
 
 ### Cascades
 
@@ -275,12 +283,12 @@ Conventions:
 
 | Method | Path | Auth | Body | Returns |
 |---|---|---|---|---|
-| GET | `/api/session` | any | — | `{ ok: true, data: { id, title, stage, maxParticipants, joinToken? } }` (joinToken admin-only) |
+| GET | `/api/session` | any | — | `{ ok: true, data: { id, title, stage, maxParticipants, settings, joinToken? } }` (joinToken admin-only) |
 | POST | `/api/setup` | none (gated by `exists=false`) | `{ password, maxParticipants }` | `{ ok: true, data: { joinToken: string } }` |
 | POST | `/api/join/:token` | none | `{ displayName }` | `{ ok: true, data: { accessKey, participant: { id, displayName } } }` |
 | POST | `/api/admin/stage` | admin | `{ to: SessionStage }` | `{ ok: true, data: { stage } }` |
 | POST | `/api/admin/reset` | admin | `{ confirmTitle }` | `{ ok: true }` |
-| PATCH | `/api/admin/settings` | admin | partial settings | `{ ok: true, data: { settings } }` |
+| PATCH | `/api/admin/settings` | admin | `{ revealResults?: boolean }` | `{ ok: true, data: { settings: SessionSettings } }` (FINISHED only; merges onto existing blob) |
 
 ### Participants (admin)
 
@@ -376,7 +384,14 @@ DELETE is idempotent — calling it for a rank with no current vote returns the 
 
 | Method | Path | Auth | Returns |
 |---|---|---|---|
-| GET | `/api/results` | participant | `{ ok: true, data: TrackResult[] }` (no matrix) |
+| GET | `/api/results` | participant | `{ ok: true, data: TrackResult[] }` (no matrix, no meta) |
+
+Both reveal gates must pass: `session.stage === 'FINISHED'` AND
+`session.settings.revealResults === true`. Either gate failing returns 400
+`RESULTS_HIDDEN` (with a different message per gate so the UI can render the
+right notice). The bare `TrackResult[]` shape — no voter matrix, no meta — is
+intentional: participants see ranks and points, never who-voted-how. Audit
+data stays on `/api/admin/results`.
 
 `TrackResult` shape:
 ```ts
@@ -435,6 +450,7 @@ Stable across versions, used by frontend for branching UI:
 | `OWNERSHIP_REQUIRED` | Tried to mutate someone else's resource |
 | `SESSION_EXISTS` | Tried to run setup when a session already exists |
 | `REGISTRATION_CLOSED` | Self-registration attempted outside `STAGE1` |
+| `RESULTS_HIDDEN` | Participant requested results before stage=FINISHED or before admin opened them |
 | `CAPACITY_REACHED` | Self-registration attempted with `maxParticipants` already met |
 | `INTERNAL_ERROR` | Unexpected server error (e.g. access key collision after retries) |
 
