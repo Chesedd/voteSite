@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { ParticipantHome } from '@/components/participant/participant-home'
 import { getActiveSession } from '@/db/repos/session'
 import { listTracks } from '@/db/repos/track'
+import { getVotesByRankForParticipant } from '@/db/repos/vote'
 import { getSessionUser } from '@/lib/auth/guards'
 import { decideHomeRoute } from '@/lib/routing'
 
@@ -22,6 +23,8 @@ export default async function Home() {
   if (!user || user.kind !== 'participant') redirect('/login')
 
   const tracks = await listTracks(session.id)
+  const initialVotes =
+    session.stage === 'STAGE2' ? await getVotesByRankForParticipant(user.participantId) : null
 
   return (
     <ParticipantHome
@@ -29,6 +32,7 @@ export default async function Home() {
       stage={session.stage}
       currentParticipantId={user.participantId}
       tracks={tracks}
+      initialVotes={initialVotes}
     />
   )
 }
