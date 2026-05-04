@@ -4,6 +4,7 @@ import { ResultsContent } from '@/components/admin/results-content'
 import { getActiveSession } from '@/db/repos/session'
 import { requireAdmin } from '@/lib/auth/guards'
 import { getResultsForSession } from '@/lib/results'
+import { parseSessionSettings } from '@/lib/settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,5 +21,6 @@ export default async function AdminResultsPage() {
   if (!session) redirect('/setup')
 
   const data = await getResultsForSession(session.id)
-  return <ResultsContent stage={session.stage} data={data} />
+  const settings = parseSessionSettings(session.settings)
+  return <ResultsContent stage={session.stage} data={data} settings={settings} />
 }

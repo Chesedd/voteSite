@@ -49,6 +49,7 @@ type SessionPayload = {
   title: string
   stage: string
   maxParticipants: number
+  settings: { revealResults?: boolean }
   joinToken?: string
 }
 
@@ -74,6 +75,7 @@ describe('GET /api/session', () => {
       title: 'Голосование',
       stage: 'STAGE2',
       maxParticipants: 30,
+      settings: {},
       joinToken: 'tok_abc',
     })
   })
@@ -93,6 +95,7 @@ describe('GET /api/session', () => {
     expect(body.data.title).toBe('Голосование')
     expect(body.data.stage).toBe('STAGE2')
     expect(body.data.maxParticipants).toBe(30)
+    expect(body.data.settings).toEqual({})
     expect(body.data.joinToken).toBeUndefined()
   })
 

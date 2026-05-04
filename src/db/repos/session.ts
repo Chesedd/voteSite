@@ -5,8 +5,10 @@
  * (updateSessionStage, etc.) will land in their own ticket (ROADMAP P1-03).
  */
 
-import type { Session, SessionStage } from '@prisma/client'
+import type { Prisma, Session, SessionStage } from '@prisma/client'
 import { prisma } from '@/db/client'
+
+import { parseSessionSettings, type SessionSettings } from '@/lib/settings'
 
 /**
  * Returns the single active Session row, or null if none exists.
@@ -68,6 +70,32 @@ export async function updateSessionStage(sessionId: string, stage: SessionStage)
     where: { id: sessionId },
     data: { stage },
   })
+}
+
+/**
+ * Merge a partial `SessionSettings` patch onto the existing JSONB blob and
+ * return the resulting typed settings. Reads the row first so we don't blow
+ * away unrelated keys an older version of the app may have written.
+ *
+ * The `as Prisma.InputJsonValue` cast is unavoidable: Prisma's input type for
+ * a `Json` column is structurally narrower than our `SessionSettings` (it
+ * disallows `undefined` even though we strip optional keys). The runtime
+ * value is a plain object of primitives, which is always a valid JSON value.
+ */
+export async function updateSessionSettings(
+  sessionId: string,
+  patch: Partial<SessionSettings>,
+): Promise<SessionSettings> {
+  const current = await prisma.session.findUnique({
+    where: { id: sessionId },
+    select: { settings: true },
+  })
+  const merged: SessionSettings = { ...parseSessionSettings(current?.settings), ...patch }
+  await prisma.session.update({
+    where: { id: sessionId },
+    data: { settings: merged as Prisma.InputJsonValue },
+  })
+  return merged
 }
 
 /**

@@ -16,6 +16,7 @@
 
 import type { SessionStage } from '@prisma/client'
 import { MoreHorizontalIcon } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -36,6 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { TrackPublic } from '@/db/repos/track'
 import type { VotesByRank } from '@/db/repos/vote'
+import type { SessionSettings } from '@/lib/settings'
 
 const TRACK_LIMIT = 3
 
@@ -45,6 +47,7 @@ type ParticipantHomeProps = {
   currentParticipantId: string
   tracks: TrackPublic[]
   initialVotes: VotesByRank | null
+  settings: SessionSettings
 }
 
 export function ParticipantHome({
@@ -53,6 +56,7 @@ export function ParticipantHome({
   currentParticipantId,
   tracks,
   initialVotes,
+  settings,
 }: ParticipantHomeProps) {
   const router = useRouter()
   const [editing, setEditing] = useState<TrackPublic | null>(null)
@@ -172,10 +176,22 @@ export function ParticipantHome({
         ) : null}
 
         {stage === 'FINISHED' ? (
-          <Alert>
-            <AlertTitle>Голосование завершено</AlertTitle>
-            <AlertDescription>Дождитесь, пока админ опубликует результаты.</AlertDescription>
-          </Alert>
+          settings.revealResults ? (
+            <Alert>
+              <AlertTitle>Голосование завершено</AlertTitle>
+              <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span>Админ открыл результаты.</span>
+                <Button asChild size="sm" variant="default" className="self-start sm:self-auto">
+                  <Link href="/results">Посмотреть результаты</Link>
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert>
+              <AlertTitle>Голосование завершено</AlertTitle>
+              <AlertDescription>Дождитесь, пока админ опубликует результаты.</AlertDescription>
+            </Alert>
+          )
         ) : null}
       </section>
 
