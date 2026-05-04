@@ -149,6 +149,16 @@ export async function countTracksByParticipant(participantId: string): Promise<n
 }
 
 /**
+ * Returns the `sessionId` of a track or null if no track matches. Used by
+ * vote endpoints to confirm a track belongs to the requester's session
+ * without paying for the full `TrackPublic` join.
+ */
+export async function findTrackSessionId(id: string): Promise<string | null> {
+  const row = await prisma.track.findUnique({ where: { id }, select: { sessionId: true } })
+  return row?.sessionId ?? null
+}
+
+/**
  * Aggregated stats for a session, used by the stage-transition endpoint to
  * verify prerequisites (`@/lib/stage-transitions.checkTransitionRequirements`).
  *
