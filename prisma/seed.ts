@@ -14,7 +14,8 @@ const PARTICIPANT_NAMES = ['Алиса', 'Боб', 'Клара', 'Денис', '
 // submitterIdx points into PARTICIPANT_NAMES. Distribution: Алиса 3, Боб 2, Клара 1.
 // Service metadata uses placeholder values so P4-05 (TrackEmbed) has realistic
 // shapes to render against. The IDs are not required to resolve to real songs.
-const YANDEX_COVER = 'https://avatars.yandex.net/get-music-content/dummy/cover.jpg'
+// Picsum.photos provides stable seeded placeholder covers — real production
+// tracks will have OG-derived URLs from the actual music services.
 const TRACKS = [
   {
     submitterIdx: 0,
@@ -22,7 +23,7 @@ const TRACKS = [
     artist: 'Кино',
     service: 'yandex',
     serviceTrackId: '12345',
-    coverUrl: YANDEX_COVER,
+    coverUrl: 'https://picsum.photos/seed/track1/200/200',
     embedSupported: true,
   },
   {
@@ -31,7 +32,7 @@ const TRACKS = [
     artist: 'Наутилус Помпилиус',
     service: 'yandex',
     serviceTrackId: '12346',
-    coverUrl: YANDEX_COVER,
+    coverUrl: 'https://picsum.photos/seed/track2/200/200',
     embedSupported: true,
   },
   {
@@ -40,7 +41,7 @@ const TRACKS = [
     artist: 'Наутилус Помпилиус',
     service: 'yandex',
     serviceTrackId: '12347',
-    coverUrl: YANDEX_COVER,
+    coverUrl: 'https://picsum.photos/seed/track3/200/200',
     embedSupported: true,
   },
   {
@@ -49,7 +50,7 @@ const TRACKS = [
     artist: 'Смысловые галлюцинации',
     service: 'yandex',
     serviceTrackId: '12348',
-    coverUrl: YANDEX_COVER,
+    coverUrl: 'https://picsum.photos/seed/track4/200/200',
     embedSupported: true,
   },
   {
@@ -99,7 +100,7 @@ async function main() {
     const session = await tx.session.create({
       data: {
         title: 'Тестовое голосование',
-        stage: SessionStage.STAGE2,
+        stage: SessionStage.STAGE1,
         adminPasswordHash: PLACEHOLDER_ADMIN_HASH,
         joinToken,
       },
