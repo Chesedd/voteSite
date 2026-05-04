@@ -38,7 +38,7 @@ import { z } from 'zod'
 
 import { err, ok } from '@/lib/api/responses'
 import { requireParticipant } from '@/lib/auth/guards'
-import { assertStage } from '@/lib/stage'
+import { StageMismatchError, assertStage } from '@/lib/stage'
 import { detectService } from '@/lib/track-url'
 import { fetchOgMetadata } from '@/lib/track-metadata'
 import { getActiveSession } from '@/db/repos/session'
@@ -116,6 +116,9 @@ export async function POST(req: Request): Promise<Response> {
     })
   } catch (e) {
     if (e instanceof Response) return e
+    if (e instanceof StageMismatchError) {
+      return err('INVALID_STAGE', `Это действие недоступно на этапе ${e.actual}.`, 400)
+    }
     throw e
   }
 }

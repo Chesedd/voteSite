@@ -1,31 +1,32 @@
 /**
- * Stage helpers.
+ * Stage gating helper.
  *
- * `assertStage` short-circuits a route handler with a 400 INVALID_STAGE response
- * when the active session is not in one of the allowed stages. Endpoints MUST
- * use this helper rather than inlining `if (session.stage !== ...)` checks so
- * the gating stays centralised and consistent — see CLAUDE.md "Conventions".
+ * Every route handler that depends on the current SessionStage routes its
+ * check through `assertStage` so the gate logic stays in one place. Inline
+ * comparisons (`if (session.stage !== 'STAGE1')`) drift across endpoints —
+ * see CLAUDE.md "Conventions → Stage gating".
  *
- * The full transition machine (canTransition, getTransitionRequirements) lands
- * in TICKET-P5-01; this file currently only carries the assertion used at API
- * boundaries.
+ * Callers wrap the handler body in a `try/catch` (per the standard auth-guard
+ * pattern) and translate `StageMismatchError` to a 400 INVALID_STAGE response.
  */
-import type { SessionStage } from '@prisma/client'
 
-import { err } from '@/lib/api/responses'
+import type { Session, SessionStage } from '@prisma/client'
 
-type WithStage = { stage: SessionStage }
+export class StageMismatchError extends Error {
+  constructor(
+    public actual: SessionStage,
+    public allowed: SessionStage[],
+  ) {
+    super(`Operation not allowed in stage ${actual} (allowed: ${allowed.join(', ')})`)
+    this.name = 'StageMismatchError'
+  }
+}
 
 /**
- * Throws a 400 INVALID_STAGE `Response` when `session.stage` is not in
- * `allowedStages`. Otherwise returns void. Mirrors the throw-Response pattern
- * used by `requireAdmin` / `requireParticipant` so the caller stays flat.
+ * Throws `StageMismatchError` if `session.stage` is not in `allowed`.
  */
-export function assertStage(session: WithStage, ...allowedStages: SessionStage[]): void {
-  if (allowedStages.length === 0) {
-    throw err('INVALID_STAGE', 'Операция недоступна на текущем этапе', 400)
-  }
-  if (!allowedStages.includes(session.stage)) {
-    throw err('INVALID_STAGE', 'Операция недоступна на текущем этапе', 400)
+export function assertStage(session: Pick<Session, 'stage'>, ...allowed: SessionStage[]): void {
+  if (!allowed.includes(session.stage)) {
+    throw new StageMismatchError(session.stage, allowed)
   }
 }
