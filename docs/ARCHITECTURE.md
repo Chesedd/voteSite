@@ -128,7 +128,7 @@ born in `STAGE1`. Participants are added later through self-registration via
 
 All other transitions: forbidden, return 400 with code `INVALID_STAGE_TRANSITION`.
 
-Implementation lives in `src/lib/stage.ts` as a pure `canTransition(from, to)` function plus `getTransitionRequirements(session, to)`. Both are unit-tested.
+Implementation lives in `src/lib/stage-transitions.ts` as pure functions: `canTransition(from, to)`, `checkTransitionRequirements(from, to, stats)` (live data check, used by the endpoint), and `describeTransitionRequirements(from, to)` (static descriptions, used by the UI on disabled buttons). All are unit-tested. The companion `src/lib/stage.ts` exports `assertStage()` for the unrelated concern of stage-gating other operations.
 
 ### Visibility Matrix
 

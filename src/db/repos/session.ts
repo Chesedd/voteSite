@@ -5,7 +5,7 @@
  * (updateSessionStage, etc.) will land in their own ticket (ROADMAP P1-03).
  */
 
-import type { Session } from '@prisma/client'
+import type { Session, SessionStage } from '@prisma/client'
 import { prisma } from '@/db/client'
 
 /**
@@ -53,6 +53,20 @@ export async function updateSessionTitle(sessionId: string, title: string) {
   return prisma.session.update({
     where: { id: sessionId },
     data: { title },
+  })
+}
+
+/**
+ * Update a Session's stage. Throws if no row matches the id — callers should
+ * ensure the session exists (typically by calling this only after
+ * `requireAdmin` + `getActiveSession`). The stage transition itself is
+ * validated upstream via `canTransition` / `checkTransitionRequirements` from
+ * `@/lib/stage-transitions`.
+ */
+export async function updateSessionStage(sessionId: string, stage: SessionStage): Promise<Session> {
+  return prisma.session.update({
+    where: { id: sessionId },
+    data: { stage },
   })
 }
 
