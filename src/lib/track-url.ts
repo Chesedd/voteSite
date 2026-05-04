@@ -7,8 +7,11 @@
  * Yandex Music (embedSupported: true)
  *   - https://music.yandex.{ru,com,by,kz,…}/album/{albumId}/track/{trackId}
  *   - https://music.yandex.{ru,com,…}/track/{trackId}              (no album)
- *   embed: https://music.yandex.ru/iframe/#track/{trackId}/{albumId}
- *          https://music.yandex.ru/iframe/#track/{trackId}        (no album)
+ *   embed: https://music.yandex.ru/iframe/album/{albumId}/track/{trackId}
+ *          https://music.yandex.ru/iframe/track/{trackId}           (no album)
+ *   (matches Yandex's "Поделиться → HTML-код" output as of 2026-05-04;
+ *   the older hash-fragment form `/iframe/#track/...` is deprecated and
+ *   renders "Кажется, мы не попали в ноты".)
  *
  * Spotify (embedSupported: true)
  *   - https://open.spotify.com/track/{id}                          (any query)
@@ -130,7 +133,7 @@ function matchYandex(url: URL): ServiceMatch {
       service: 'yandex',
       serviceTrackId: trackId,
       serviceAlbumId: albumId,
-      embedUrl: `https://music.yandex.ru/iframe/#track/${trackId}/${albumId}`,
+      embedUrl: `https://music.yandex.ru/iframe/album/${albumId}/track/${trackId}`,
       embedSupported: true,
     }
   }
@@ -141,7 +144,7 @@ function matchYandex(url: URL): ServiceMatch {
       service: 'yandex',
       serviceTrackId: trackId,
       serviceAlbumId: null,
-      embedUrl: `https://music.yandex.ru/iframe/#track/${trackId}`,
+      embedUrl: `https://music.yandex.ru/iframe/track/${trackId}`,
       embedSupported: true,
     }
   }

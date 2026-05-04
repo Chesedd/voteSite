@@ -72,23 +72,23 @@ function EmbedIframe({
   serviceAlbumId: string | null
 }) {
   // Each provider's widget has its own natural height. Don't try to unify
-  // them — Yandex's bar is ~100px, Spotify's compact card is 80px, and
-  // YouTube needs ~200px because it shows video frames.
+  // them — Yandex's player is 244px (its official embed size), Spotify's
+  // compact card is 80px, and YouTube needs ~200px because it shows video
+  // frames.
   if (service === 'yandex') {
-    // Yandex's iframe widget renders "Кажется, мы не попали в ноты" when only
-    // the track id is supplied for tracks that came from /album/X/track/Y
-    // URLs — both ids are needed. Tracks pasted from a bare /track/Y URL
-    // have no album id, and the track-only embed works for those.
+    // Mirrors the path-based format from Yandex's "Поделиться → HTML-код"
+    // output. The earlier hash-fragment form (/iframe/#track/...) is
+    // deprecated and renders "Кажется, мы не попали в ноты".
     const yandexEmbed = serviceAlbumId
-      ? `https://music.yandex.ru/iframe/#track/${serviceTrackId}/${serviceAlbumId}`
-      : `https://music.yandex.ru/iframe/#track/${serviceTrackId}`
+      ? `https://music.yandex.ru/iframe/album/${serviceAlbumId}/track/${serviceTrackId}`
+      : `https://music.yandex.ru/iframe/track/${serviceTrackId}`
     return (
       <div className="bg-muted overflow-hidden rounded-md">
         <iframe
           title={`${SERVICE_NAMES.yandex} — плеер`}
           src={yandexEmbed}
           width="100%"
-          height={100}
+          height={244}
           loading="lazy"
           sandbox="allow-scripts allow-same-origin allow-popups"
           frameBorder={0}
