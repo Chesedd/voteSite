@@ -16,25 +16,18 @@
 import { useState } from 'react'
 import { ChevronDownIcon, DownloadIcon } from 'lucide-react'
 import type { SessionStage } from '@prisma/client'
-import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
 
 import { ResultsBarChart } from '@/components/results/results-bar-chart'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import type { ApiResponse } from '@/lib/api/responses'
 import type { ResultsData } from '@/lib/results'
-import type { SessionSettings } from '@/lib/settings'
 import { cn } from '@/lib/utils'
 
 type ResultsContentProps = {
   stage: SessionStage
   data: ResultsData
-  settings: SessionSettings
 }
 
 function rankEmoji(rank: 1 | 2 | 3 | null): string {
@@ -44,17 +37,18 @@ function rankEmoji(rank: 1 | 2 | 3 | null): string {
   return '—'
 }
 
-export function ResultsContent({ stage, data, settings }: ResultsContentProps) {
+export function ResultsContent({ stage, data }: ResultsContentProps) {
   const { results, matrix, meta } = data
   const hasVotes = meta.votingParticipants > 0
   const isStage1 = stage === 'STAGE1'
 
+  // The "Видимость результатов" / reveal-toggle card was removed in Phase 8:
+  // participants now see the winner automatically on the home page when the
+  // session is FINISHED. The PATCH /api/admin/settings endpoint and the
+  // settings.revealResults DB field are intentionally retained (no migration)
+  // for potential future reveal-style features.
   return (
     <div className="flex flex-col gap-4">
-      {/* Reveal toggle is meaningful only after voting closes — see */}
-      {/* PATCH /api/admin/settings stage gate. Hide outside FINISHED. */}
-      {stage === 'FINISHED' && <RevealToggleCard initial={settings.revealResults ?? false} />}
-
       <SummaryCard stage={stage} meta={meta} hasVotes={hasVotes} />
 
       {!isStage1 && (
@@ -85,62 +79,6 @@ export function ResultsContent({ stage, data, settings }: ResultsContentProps) {
 
       {!isStage1 && hasVotes && <VoterMatrixCard matrix={matrix} />}
     </div>
-  )
-}
-
-function RevealToggleCard({ initial }: { initial: boolean }) {
-  const router = useRouter()
-  const [revealed, setRevealed] = useState(initial)
-  const [pending, setPending] = useState(false)
-
-  async function toggle(next: boolean) {
-    // Optimistic flip — revert on failure so the switch doesn't lie.
-    setRevealed(next)
-    setPending(true)
-    try {
-      const res = await fetch('/api/admin/settings', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ revealResults: next }),
-      })
-      const body = (await res.json()) as ApiResponse<{ settings: SessionSettings }>
-      if (!body.ok) {
-        throw new Error(body.error.message)
-      }
-      toast.success(next ? 'Результаты открыты участникам' : 'Результаты снова скрыты')
-      router.refresh()
-    } catch (e) {
-      setRevealed(!next)
-      const message = e instanceof Error ? e.message : 'Не удалось обновить настройки'
-      toast.error(message)
-    } finally {
-      setPending(false)
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Видимость результатов</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="reveal-results-switch" className="text-sm font-medium">
-            Показать результаты участникам
-          </Label>
-          <p className="text-muted-foreground text-sm">
-            После включения участники увидят итоговый рейтинг треков. Изменения видны мгновенно.
-          </p>
-        </div>
-        <Switch
-          id="reveal-results-switch"
-          checked={revealed}
-          onCheckedChange={toggle}
-          disabled={pending}
-          aria-label="Показать результаты участникам"
-        />
-      </CardContent>
-    </Card>
   )
 }
 

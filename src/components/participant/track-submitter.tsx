@@ -243,7 +243,6 @@ export function TrackSubmitter() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={DESCRIPTION_MAX}
-                placeholder="Почему стоит послушать?"
                 disabled={pending}
               />
               <p className="text-muted-foreground text-xs">

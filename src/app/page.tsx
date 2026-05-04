@@ -5,8 +5,8 @@ import { getActiveSession } from '@/db/repos/session'
 import { listTracks } from '@/db/repos/track'
 import { getVotesByRankForParticipant } from '@/db/repos/vote'
 import { getSessionUser } from '@/lib/auth/guards'
+import { getResultsForSession } from '@/lib/results'
 import { decideHomeRoute } from '@/lib/routing'
-import { parseSessionSettings } from '@/lib/settings'
 
 // Reads cookie + DB on every request. Must run per-request, not at build time.
 export const dynamic = 'force-dynamic'
@@ -26,6 +26,8 @@ export default async function Home() {
   const tracks = await listTracks(session.id)
   const initialVotes =
     session.stage === 'STAGE2' ? await getVotesByRankForParticipant(user.participantId) : null
+  const results =
+    session.stage === 'FINISHED' ? (await getResultsForSession(session.id)).results : null
 
   return (
     <ParticipantHome
@@ -34,7 +36,7 @@ export default async function Home() {
       currentParticipantId={user.participantId}
       tracks={tracks}
       initialVotes={initialVotes}
-      settings={parseSessionSettings(session.settings)}
+      results={results}
     />
   )
 }

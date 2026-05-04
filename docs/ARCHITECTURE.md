@@ -140,14 +140,17 @@ Implementation lives in `src/lib/stage-transitions.ts` as pure functions: `canTr
 
 ### Visibility Matrix
 
-| | STAGE1 | STAGE2 | FINISHED (hidden) | FINISHED (revealed) |
-|---|---|---|---|---|
-| Participants see other tracks | ✅ | ✅ | ✅ | ✅ |
-| Participants see track authors | ✅ | ✅ | ✅ | ✅ |
-| Participants see vote counts | — | ❌ | ❌ | ✅ |
-| Admin sees everything | ✅ | ✅ | ✅ | ✅ |
+| | STAGE1 | STAGE2 | FINISHED |
+|---|---|---|---|
+| Participants see other tracks | ✅ | ✅ | — (only the winner) |
+| Participants see track authors | ❌ | ❌ | ❌ |
+| Participants see vote counts | — | ❌ | ❌ |
+| Participants see the winner | — | — | ✅ (auto-shown) |
+| Admin sees everything | ✅ | ✅ | ✅ |
 
-`revealResults` is a `Session.settings` flag, toggled by the admin only when stage = FINISHED.
+Track-author identity is hidden from peers at every stage (Phase 8 blind-voting / privacy preference). The `submittedBy` field is still returned on the public `TrackPublic` shape because the admin views and the participant client need to flag the viewer's own tracks (the "Ваш" badge is derived from `submittedBy.id === currentParticipantId` and never names anyone else). Admin views render submitter names normally.
+
+On `FINISHED`, `/` shows the winning track auto-magically — no admin action required. The `Session.settings.revealResults` flag and the `PATCH /api/admin/settings` endpoint are intentionally retained (no migration) for potential future reveal-style features but no longer gate any UI as of Phase 8. The legacy `/results` route still exists for the same reason; nothing in the participant UI links to it.
 
 `Participant.accessKey` (plaintext) is **admin-only** at every stage. It is exposed only on `/api/admin/*` endpoints (which `requireAdmin`); never on `/api/auth/participant`, `/api/me`, or any participant-facing route.
 
