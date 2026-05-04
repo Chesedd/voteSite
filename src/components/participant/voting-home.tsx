@@ -21,8 +21,9 @@
 
 'use client'
 
+import type { SessionStage } from '@prisma/client'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { StageBadge } from '@/components/admin/stage-badge'
@@ -31,8 +32,16 @@ import { TrackCard } from '@/components/participant/track-card'
 import { TrackRankSelector } from '@/components/participant/track-rank-selector'
 import { Button } from '@/components/ui/button'
 import type { ApiResponse } from '@/lib/api/responses'
+import { usePoll } from '@/lib/use-poll'
 import type { TrackPublic } from '@/db/repos/track'
 import type { VotesByRank } from '@/db/repos/vote'
+
+type SessionInfo = {
+  id: string
+  title: string
+  stage: SessionStage
+  maxParticipants: number
+}
 
 const RANKS = [1, 2, 3] as const
 
@@ -97,6 +106,24 @@ export function VotingHome({
   const [votes, setVotes] = useState<VotesByRank>(initialVotes)
   const [pending, setPending] = useState<{ trackId: string; rank: Rank } | null>(null)
   const [loggingOut, setLoggingOut] = useState(false)
+
+  // Poll the pool so admin moderation (deletions, edits) propagates without
+  // a manual refresh. Votes are deliberately NOT polled — they're driven by
+  // optimistic local state on every click and a polled overwrite would race.
+  const polledTracks = usePoll<TrackPublic[]>({ url: '/api/tracks', initial: tracks })
+
+  // Poll session so a stage transition (admin advances to FINISHED, or rolls
+  // back to STAGE1) flips the layout without the user having to refresh. We
+  // hand off via router.refresh() rather than rendering the new stage here —
+  // ParticipantHome at the page level dispatches by stage.
+  const polledSession = usePoll<SessionInfo>({
+    url: '/api/session',
+    initial: { id: '', title: sessionTitle, stage: 'STAGE2', maxParticipants: 0 },
+  })
+
+  useEffect(() => {
+    if (polledSession.stage !== 'STAGE2') router.refresh()
+  }, [polledSession.stage, router])
 
   async function handleLogout() {
     setLoggingOut(true)
@@ -180,22 +207,22 @@ export function VotingHome({
         </Button>
       </header>
 
-      <TopThreePanel votes={votes} tracks={tracks} />
+      <TopThreePanel votes={votes} tracks={polledTracks} />
 
       <section aria-labelledby="pool-heading" className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="pool-heading" className="text-lg font-semibold tracking-tight">
             Все треки
           </h2>
-          <p className="text-muted-foreground text-sm">{tracks.length}</p>
+          <p className="text-muted-foreground text-sm">{polledTracks.length}</p>
         </div>
-        {tracks.length === 0 ? (
+        {polledTracks.length === 0 ? (
           // Defensive: STAGE1→STAGE2 requires ≥3 tracks, so this branch should
           // be unreachable in practice.
           <p className="text-muted-foreground text-sm">Треков пока нет.</p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {tracks.map((t) => {
+            {polledTracks.map((t) => {
               const currentRank = findCurrentRank(votes, t.id)
               const pendingForCard = pending?.trackId === t.id ? pending.rank : null
               const disabledForCard = pending !== null && pending.trackId !== t.id
@@ -209,7 +236,7 @@ export function VotingHome({
                         trackId={t.id}
                         currentRank={currentRank}
                         votes={votes}
-                        tracks={tracks}
+                        tracks={polledTracks}
                         onPlace={(rank) => void place(t.id, rank)}
                         onUnrank={() => {
                           if (currentRank !== null) void unrank(t.id, currentRank)

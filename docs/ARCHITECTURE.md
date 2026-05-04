@@ -224,7 +224,7 @@ maxAge: 24 * 60 * 60
 
 ### Single active session
 
-We support exactly one active `Session` row at a time. The setup screen blocks if one exists. `GET /api/session` (no auth) returns `{ exists: boolean, stage: SessionStage }` for the home page router to decide between `/setup`, `/login`, etc.
+We support exactly one active `Session` row at a time. The setup screen blocks if one exists. The home page router (`src/lib/routing.ts`) decides between `/setup`, `/login`, and the participant/admin home server-side. `GET /api/session` is reserved for authenticated clients that need to detect changes (stage transitions, title edits) — see "Polling vs realtime".
 
 ## Self-Registration Flow
 
@@ -275,7 +275,7 @@ Conventions:
 
 | Method | Path | Auth | Body | Returns |
 |---|---|---|---|---|
-| GET | `/api/session` | none | — | `{ ok: true, data: { exists, stage } }` |
+| GET | `/api/session` | any | — | `{ ok: true, data: { id, title, stage, maxParticipants, joinToken? } }` (joinToken admin-only) |
 | POST | `/api/setup` | none (gated by `exists=false`) | `{ password, maxParticipants }` | `{ ok: true, data: { joinToken: string } }` |
 | POST | `/api/join/:token` | none | `{ displayName }` | `{ ok: true, data: { accessKey, participant: { id, displayName } } }` |
 | POST | `/api/admin/stage` | admin | `{ to: SessionStage }` | `{ ok: true, data: { stage } }` |

@@ -2,8 +2,14 @@
  * /admin home overview: current stage, counts, and quick actions.
  *
  * Server-rendered apart from interactive islands (rename dialog, stage
- * controls), which own client-side state for their fetches.
+ * controls), which own client-side state for their fetches. Wrapped as a
+ * client component so it can `router.refresh()` on a polling interval —
+ * stats and stage badge are read from server props, so the refresh re-runs
+ * the parent RSC and the new values flow back through this component
+ * without a custom fetch path. See `useRouterRefreshPoll`.
  */
+
+'use client'
 
 import type { Session } from '@prisma/client'
 
@@ -13,6 +19,7 @@ import { StageBadge } from '@/components/admin/stage-badge'
 import { StageControls } from '@/components/admin/stage-controls'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { StageStats } from '@/lib/stage-transitions'
+import { useRouterRefreshPoll } from '@/lib/use-poll'
 
 type AdminHomeContentProps = {
   session: Session
@@ -20,6 +27,7 @@ type AdminHomeContentProps = {
 }
 
 export function AdminHomeContent({ session, stats }: AdminHomeContentProps) {
+  useRouterRefreshPoll()
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <Card>
